@@ -731,9 +731,24 @@ body.dark-mode #clientList li button:hover {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    /* General adjustments for smaller screens */
+    main {
+        margin: 10px auto; /* Slightly less margin on mobile */
+        padding: 0 15px; /* Slightly less padding on mobile */
+    }
+    section {
+        padding: 40px 0; /* Slightly less vertical padding on mobile */
+        margin-bottom: 15px;
+    }
+
+    /* Header and Navigation */
     nav {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .logo img {
+        height: 80px; /* Reduced logo size for mobile */
     }
 
     .nav-links {
@@ -747,6 +762,7 @@ body.dark-mode #clientList li button:hover {
         margin: 10px 0;
     }
 
+    /* Hero Section */
     .hero h1 {
         font-size: 2.5rem;
     }
@@ -755,14 +771,28 @@ body.dark-mode #clientList li button:hover {
         font-size: 1.2rem;
     }
 
+    /* About Us Section */
     .about-content {
         flex-direction: column;
     }
 
+    /* Services Section */
     .service-grid {
         grid-template-columns: 1fr;
     }
 
+    /* Star Rating */
+    .star-rating {
+        font-size: 2rem; /* Slightly smaller stars for mobile */
+    }
+
+    /* Comment List */
+    #comment-list {
+        grid-template-columns: 1fr; /* Stack comments vertically on small screens */
+        gap: 15px; /* Slightly smaller gap */
+    }
+
+    /* Admin Dashboard Navigation */
     .dashboard-nav {
         flex-direction: column;
     }
