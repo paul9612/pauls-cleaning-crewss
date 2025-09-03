@@ -61,6 +61,14 @@ const commentSchema = new mongoose.Schema({
   text: { type: String, required: true }
 }, { timestamps: true });
 
+// NEW ADDITION: Client Schema (for admin client management)
+const clientSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true }, // Email should be unique for clients
+  phone: { type: String },
+  address: { type: String }
+}, { timestamps: true });
+
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);
 const ComplaintReport = mongoose.model('ComplaintReport', complaintReportSchema);
@@ -70,6 +78,8 @@ const JobApplication = mongoose.model('JobApplication', jobApplicationSchema);
 const Review = mongoose.model('Review', reviewSchema);
 // NEW ADDITION: Comment Model
 const Comment = mongoose.model('Comment', commentSchema);
+// NEW ADDITION: Client Model
+const Client = mongoose.model('Client', clientSchema);
 
 
 // Admin Credentials (FOR DEMONSTRATION PURPOSES ONLY - In a real app, use hashed passwords and JWTs/sessions)
@@ -95,6 +105,47 @@ const isAdminAuthenticated = (req, res, next) => {
     // if the user has successfully "logged in". A real app needs server-side session/token validation.
     next();
 };
+
+// --- Client Management API Endpoints (NEW) ---
+// Create Client (Admin only)
+app.post('/api/clients', isAdminAuthenticated, async (req, res) => {
+  try {
+    const newClient = new Client(req.body);
+    await newClient.save();
+    res.status(201).json(newClient);
+  } catch (error) {
+    // Handle duplicate email error specifically
+    if (error.code === 11000) { // MongoDB duplicate key error code
+      return res.status(409).json({ message: 'Client with this email already exists.', error: error.message });
+    }
+    res.status(400).json({ message: 'Error creating client', error: error.message });
+  }
+});
+
+// Get All Clients (Admin only)
+app.get('/api/clients', isAdminAuthenticated, async (req, res) => {
+  try {
+    const clients = await Client.find().sort({ name: 1 }); // Sort by name
+    res.json(clients);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching clients', error: error.message });
+  }
+});
+
+// Delete Client (Admin only)
+app.delete('/api/clients/:id', isAdminAuthenticated, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await Client.findByIdAndDelete(id);
+    if (!result) {
+      return res.status(404).json({ message: 'Client not found' });
+    }
+    res.json({ message: 'Client deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting client', error: error.message });
+  }
+});
+
 
 // Create Appointment (Admin only)
 app.post('/api/appointments', isAdminAuthenticated, async (req, res) => {
