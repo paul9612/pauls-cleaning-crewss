@@ -1,3 +1,4 @@
+// script.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- Theme Toggle (Dark/Light Mode) ---
     const themeToggle = document.getElementById('theme-toggle');
@@ -213,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const starRatingContainer = document.querySelector('.star-rating');
     const stars = document.querySelectorAll('.star-rating .star');
     let currentRating = parseInt(starRatingContainer.dataset.rating);
+    const averageRatingDisplay = document.getElementById('average-rating-display'); // Get the display element
 
     function highlightStars(rating) {
         stars.forEach(star => {
@@ -222,6 +224,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 star.classList.remove('selected');
             }
         });
+    }
+
+    // NEW: Function to fetch and display average rating
+    async function fetchAverageRating() {
+        try {
+            const response = await fetch('/api/reviews/average');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.totalRatings > 0) {
+                averageRatingDisplay.textContent = `${data.averageRating} out of 5 ratings (${data.totalRatings} total)`;
+            } else {
+                averageRatingDisplay.textContent = 'No ratings yet. Be the first!';
+            }
+        } catch (error) {
+            console.error('Error fetching average rating:', error);
+            averageRatingDisplay.textContent = 'Could not load ratings.';
+        }
     }
 
     stars.forEach(star => {
@@ -249,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     console.log('Review submitted successfully:', currentRating);
                     reviewThankYouModal.style.display = 'block'; // Show thank you modal
+                    fetchAverageRating(); // NEW: Update average rating after submission
                 } else {
                     const errorData = await response.json();
                     console.error('Failed to submit review:', errorData.message);
@@ -350,5 +372,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial calls on page load
     fetchPublicAppointments();
-    // Removed: fetchComments();
+    fetchAverageRating(); // NEW: Fetch average rating on page load
 });
