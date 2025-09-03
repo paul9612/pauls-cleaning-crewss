@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAppointments(); // Load appointments on dashboard entry
                 fetchComplaints(); // Load complaints on dashboard entry
                 fetchJobApplications(); // Load job applications on dashboard entry
+                fetchClients(); // NEW: Load clients on dashboard entry
             }
         } else {
             if (adminLoginSection) adminLoginSection.style.display = 'block';
@@ -198,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Client Management Functionality (using localStorage) ---
+    // --- Client Management Functionality (NOW using MongoDB via API) ---
     const newClientNameInput = document.getElementById('newClientName');
     const clientEmailInput = document.getElementById('clientEmail');
     const clientPhoneInput = document.getElementById('clientPhone');
@@ -208,28 +209,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const noClientsMessage = document.getElementById('no-clients-message');
     const clientMessage = document.getElementById('client-message');
 
-    function getClients() {
+    async function fetchClients() {
+        if (!clientList) return; // Ensure element exists (only on admin page)
+
+        clientList.innerHTML = ''; // Clear previous content
+        if (noClientsMessage) noClientsMessage.style.display = 'none'; // Hide message initially
+
         try {
-            const clients = JSON.parse(localStorage.getItem('clients')) || [];
-            return clients;
-        } catch (e) {
-            console.error("Error parsing clients from localStorage:", e);
-            return [];
+            const response = await fetch('/api/clients');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const clients = await response.json();
+            displayAdminClients(clients);
+        } catch (error) {
+            console.error('Error fetching clients:', error);
+            clientList.innerHTML = `<li class="error-message">Failed to load clients.</li>`;
+            if (noClientsMessage) {
+                noClientsMessage.textContent = 'Failed to load clients.';
+                noClientsMessage.style.display = 'block';
+            }
         }
     }
 
-    function saveClients(clients) {
-        localStorage.setItem('clients', JSON.stringify(clients));
-    }
+    function displayAdminClients(clients) {
+        if (!clientList) return;
 
-    function fetchClients() {
-        if (!clientList) return; // Ensure element exists (only on admin page)
-
-        const clients = getClients();
         clientList.innerHTML = ''; // Clear previous content
-
         if (clients.length === 0) {
-            if (noClientsMessage) noClientsMessage.style.display = 'block';
+            if (noClientsMessage) {
+                noClientsMessage.textContent = 'No clients found.';
+                noClientsMessage.style.display = 'block';
+            }
             return;
         }
         if (noClientsMessage) noClientsMessage.style.display = 'none';
@@ -243,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     Phone: ${client.phone || 'N/A'}<br>
                     Address: ${client.address || 'N/A'}
                 </div>
-                <button data-id="${client.id}">Delete</button>
+                <button data-id="${client._id}">Delete</button>
             `;
             clientList.appendChild(listItem);
         });
@@ -253,20 +264,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function deleteClient(event) {
+    async function deleteClient(event) {
         const clientIdToDelete = event.target.dataset.id;
         if (!confirm('Are you sure you want to delete this client?')) {
             return;
         }
 
-        let clients = getClients();
-        clients = clients.filter(client => client.id !== clientIdToDelete);
-        saveClients(clients);
-        fetchClients(); // Refresh the list
+        try {
+            const response = await fetch(`/api/clients/${clientIdToDelete}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                alert('Client deleted successfully!');
+                fetchClients(); // Refresh the list
+            } else {
+                const result = await response.json();
+                alert(result.message || 'Failed to delete client.');
+            }
+        } catch (error) {
+            console.error('Error deleting client:', error);
+            alert('An error occurred while deleting the client.');
+        }
     }
 
     if (saveClientBtn) {
-        saveClientBtn.addEventListener('click', () => {
+        saveClientBtn.addEventListener('click', async () => {
             const name = newClientNameInput.value.trim();
             const email = clientEmailInput.value.trim();
             const phone = clientPhoneInput.value.trim();
@@ -278,30 +301,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const newClient = {
-                id: Date.now().toString(), // Simple unique ID
-                name,
-                email,
-                phone,
-                address
-            };
+            const newClientData = { name, email, phone, address };
 
-            const clients = getClients();
-            clients.push(newClient);
-            saveClients(clients);
+            try {
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newClientData)
+                });
 
-            clientMessage.className = 'success-message';
-            clientMessage.textContent = 'Client saved successfully!';
+                const result = await response.json();
 
-            // Clear inputs
-            newClientNameInput.value = '';
-            clientEmailInput.value = '';
-            clientPhoneInput.value = '';
-            clientAddressInput.value = '';
+                if (response.ok) {
+                    clientMessage.className = 'success-message';
+                    clientMessage.textContent = 'Client saved successfully!';
 
-            // Optionally, switch to view clients section after saving
-            // showSection('view-clients-section');
-            // fetchClients();
+                    // Clear inputs
+                    newClientNameInput.value = '';
+                    clientEmailInput.value = '';
+                    clientPhoneInput.value = '';
+                    clientAddressInput.value = '';
+
+                    // Optionally, switch to view clients section after saving
+                    // showSection('view-clients-section');
+                    // fetchClients();
+                } else {
+                    clientMessage.className = 'error-message';
+                    clientMessage.textContent = result.message || 'Failed to save client.';
+                }
+            } catch (error) {
+                console.error('Error saving client:', error);
+                clientMessage.className = 'error-message';
+                clientMessage.textContent = 'An error occurred during saving. Please try again.';
+            }
         });
     }
 
@@ -428,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(result.message || 'Failed to delete appointment.');
             }
         } catch (error) {
-                console.error('Error deleting appointment:', error);
+            console.error('Error deleting appointment:', error);
             alert('An error occurred while deleting the appointment.');
         }
     }
