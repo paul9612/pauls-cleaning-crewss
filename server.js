@@ -1,3 +1,4 @@
+// server.js
 console.log("server.js has started")
 const express = require('express');
 const mongoose = require('mongoose');
@@ -267,7 +268,25 @@ app.post('/api/reviews', async (req, res) => {
   }
 });
 
-// NEW ADDITION: Get All Reviews (Admin only - or for calculating average)
+// NEW ADDITION: Get Average Rating and Count (Public)
+app.get('/api/reviews/average', async (req, res) => {
+  try {
+    const reviews = await Review.find({});
+    if (reviews.length === 0) {
+      return res.json({ averageRating: 0, totalRatings: 0 });
+    }
+
+    const totalRatingSum = reviews.reduce((sum, review) => sum + review.rating, 0);
+    const averageRating = (totalRatingSum / reviews.length).toFixed(1); // One decimal place
+    const totalRatings = reviews.length;
+
+    res.json({ averageRating: parseFloat(averageRating), totalRatings });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching average rating', error: error.message });
+  }
+});
+
+// Keep the isAdminAuthenticated for the full list of reviews for admin panel
 app.get('/api/reviews', isAdminAuthenticated, async (req, res) => {
   try {
     const reviews = await Review.find().sort({ createdAt: -1 });
