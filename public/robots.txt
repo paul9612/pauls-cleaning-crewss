@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://pauls-cleaning-crewss-1.onrender.com/sitemap.xml
