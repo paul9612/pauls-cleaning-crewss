@@ -1,3 +1,6 @@
+// admin-client-app.js
+// Client-side admin/public logic — includes booking deletion support for server/legacy localStorage bookings
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- Theme Toggle (Dark/Light Mode) ---
     const themeToggle = document.getElementById('theme-toggle');
@@ -5,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsModal = document.getElementById('settings-modal');
     const closeButtons = document.querySelectorAll('.close-button');
 
-    // Function to apply theme
     function applyTheme(isDarkMode) {
         if (isDarkMode) {
             document.body.classList.add('dark-mode');
@@ -16,15 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Load saved theme preference
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
         applyTheme(true);
     } else {
-        applyTheme(false); // Default to light if no preference or 'light'
+        applyTheme(false);
     }
 
-    // Event listener for theme toggle in settings modal
     if (themeToggle) {
         themeToggle.addEventListener('change', () => {
             if (themeToggle.checked) {
@@ -37,25 +37,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Open settings modal
-    if (settingsBtn) {
+    if (settingsBtn && settingsModal) {
         settingsBtn.addEventListener('click', () => {
             settingsModal.style.display = 'block';
-            // Ensure the toggle reflects current theme when modal opens
             applyTheme(document.body.classList.contains('dark-mode'));
         });
     }
 
-    // Close modals
     closeButtons.forEach(button => {
         button.addEventListener('click', () => {
-            button.closest('.modal').style.display = 'none';
+            const modal = button.closest('.modal');
+            if (modal) modal.style.display = 'none';
         });
     });
 
-    // Close modal if clicked outside
     window.addEventListener('click', (event) => {
-        if (event.target === settingsModal) {
+        if (settingsModal && event.target === settingsModal) {
             settingsModal.style.display = 'none';
         }
     });
@@ -67,20 +64,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminDashboardSection = document.getElementById('admin-dashboard');
     const adminLogoutBtn = document.getElementById('admin-logout-btn');
 
-    // Check if admin is already "logged in" (based on session storage for this demo)
     function checkAdminStatus() {
         const isAdminLoggedIn = sessionStorage.getItem('isAdminLoggedIn');
         if (isAdminLoggedIn === 'true') {
             if (adminLoginSection) adminLoginSection.style.display = 'none';
             if (adminDashboardSection) adminDashboardSection.style.display = 'block';
             if (adminLogoutBtn) adminLogoutBtn.style.display = 'inline-block';
-            // Only show default section and fetch admin data if on the admin page
             if (window.location.pathname.includes('/admin')) {
-                showSection('view-appointments-section'); // Default to view appointments
-                fetchAppointments(); // Load appointments on dashboard entry
-                fetchComplaints(); // Load complaints on dashboard entry
-                fetchJobApplications(); // Load job applications on dashboard entry
-                fetchClients(); // NEW: Load clients on dashboard entry
+                showSection('view-appointments-section'); // default section
+                fetchAppointments();
+                fetchComplaints();
+                fetchJobApplications();
+                fetchBookings();
             }
         } else {
             if (adminLoginSection) adminLoginSection.style.display = 'block';
@@ -98,29 +93,30 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('/api/admin/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
 
                 const result = await response.json();
-
                 if (response.ok && result.success) {
-                    loginMessage.className = 'success-message';
-                    loginMessage.textContent = 'Login successful! Redirecting to dashboard...';
-                    sessionStorage.setItem('isAdminLoggedIn', 'true'); // Store login status
-                    setTimeout(() => {
-                        checkAdminStatus();
-                    }, 1000);
+                    if (loginMessage) {
+                        loginMessage.className = 'success-message';
+                        loginMessage.textContent = 'Login successful! Redirecting to dashboard...';
+                    }
+                    sessionStorage.setItem('isAdminLoggedIn', 'true');
+                    setTimeout(() => checkAdminStatus(), 800);
                 } else {
-                    loginMessage.className = 'error-message';
-                    loginMessage.textContent = result.message || 'Login failed.';
+                    if (loginMessage) {
+                        loginMessage.className = 'error-message';
+                        loginMessage.textContent = result.message || 'Login failed.';
+                    }
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                loginMessage.className = 'error-message';
-                loginMessage.textContent = 'An error occurred during login. Please try again.';
+                if (loginMessage) {
+                    loginMessage.className = 'error-message';
+                    loginMessage.textContent = 'An error occurred during login. Please try again.';
+                }
             }
         });
     }
@@ -140,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewAppointmentsBtn = document.getElementById('view-appointments-btn');
     const viewComplaintsBtn = document.getElementById('view-complaints-btn');
     const viewApplicationsNavBtn = document.getElementById('viewApplicationsNavBtn');
-
+    const viewBookingsBtn = document.getElementById('viewBookingsBtn');
 
     const addClientSection = document.getElementById('add-client-section');
     const viewClientsSection = document.getElementById('view-clients-section');
@@ -148,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewAppointmentsSection = document.getElementById('view-appointments-section');
     const viewComplaintsSection = document.getElementById('view-complaints-section');
     const viewApplicationsSection = document.getElementById('view-applications-section');
-
+    const bookingsContainer = document.getElementById('bookingsContainer');
 
     function hideAllSections() {
         if (addClientSection) addClientSection.style.display = 'none';
@@ -157,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (viewAppointmentsSection) viewAppointmentsSection.style.display = 'none';
         if (viewComplaintsSection) viewComplaintsSection.style.display = 'none';
         if (viewApplicationsSection) viewApplicationsSection.style.display = 'none';
+        if (bookingsContainer) bookingsContainer.style.display = 'none';
     }
 
     function showSection(sectionId) {
@@ -168,13 +165,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addClientNavBtn) {
         addClientNavBtn.addEventListener('click', () => {
             showSection('add-client-section');
-            document.getElementById('client-message').textContent = ''; // Clear message
+            const cm = document.getElementById('client-message');
+            if (cm) cm.textContent = '';
         });
     }
     if (viewClientsNavBtn) {
         viewClientsNavBtn.addEventListener('click', () => {
             showSection('view-clients-section');
-            fetchClients(); // Load clients when viewing
+            fetchClients();
         });
     }
     if (createAppointmentBtn) {
@@ -183,19 +181,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (viewAppointmentsBtn) {
         viewAppointmentsBtn.addEventListener('click', () => {
             showSection('view-appointments-section');
-            fetchAppointments(); // Refresh appointments when viewing
+            fetchAppointments();
         });
     }
     if (viewComplaintsBtn) {
         viewComplaintsBtn.addEventListener('click', () => {
             showSection('view-complaints-section');
-            fetchComplaints(); // Refresh complaints when viewing
+            fetchComplaints();
         });
     }
     if (viewApplicationsNavBtn) {
         viewApplicationsNavBtn.addEventListener('click', () => {
             showSection('view-applications-section');
-            fetchJobApplications(); // Refresh job applications when viewing
+            fetchJobApplications();
+        });
+    }
+    if (viewBookingsBtn) {
+        viewBookingsBtn.addEventListener('click', () => {
+            showSection('bookingsContainer');
+            fetchBookings();
         });
     }
 
@@ -339,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Create Appointment Logic (Admin Only) ---
+    // --- Create Appointment (Admin) ---
     const createAppointmentForm = document.getElementById('create-appointment-form');
     const appointmentMessage = document.getElementById('appointment-message');
 
@@ -359,28 +363,31 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('/api/appointments', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
                 const result = await response.json();
-
                 if (response.ok) {
-                    appointmentMessage.className = 'success-message';
-                    appointmentMessage.textContent = 'Appointment created successfully!';
+                    if (appointmentMessage) {
+                        appointmentMessage.className = 'success-message';
+                        appointmentMessage.textContent = 'Appointment created successfully!';
+                    }
                     createAppointmentForm.reset();
-                    fetchAppointments(); // Refresh appointments list in admin view
-                    fetchPublicAppointments(); // NEW: Refresh public appointments list
+                    fetchAppointments();
+                    fetchPublicAppointments();
                 } else {
-                    appointmentMessage.className = 'error-message';
-                    appointmentMessage.textContent = result.message || 'Failed to create appointment.';
+                    if (appointmentMessage) {
+                        appointmentMessage.className = 'error-message';
+                        appointmentMessage.textContent = result.message || 'Failed to create appointment.';
+                    }
                 }
             } catch (error) {
                 console.error('Error creating appointment:', error);
-                appointmentMessage.className = 'error-message';
-                appointmentMessage.textContent = 'An error occurred. Please try again.';
+                if (appointmentMessage) {
+                    appointmentMessage.className = 'error-message';
+                    appointmentMessage.textContent = 'An error occurred. Please try again.';
+                }
             }
         });
     }
@@ -390,33 +397,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const noAppointmentsMessage = document.getElementById('no-appointments-message');
 
     async function fetchAppointments() {
-        if (!appointmentsTableBody) return; // Exit if table body doesn't exist (i.e., not on admin page)
-
+        if (!appointmentsTableBody) return;
         try {
             const response = await fetch('/api/appointments');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const appointments = await response.json();
             displayAdminAppointments(appointments);
         } catch (error) {
             console.error('Error fetching appointments:', error);
-            appointmentsTableBody.innerHTML = `<tr><td colspan="7" class="error-message">Failed to load appointments.</td></tr>`;
+            if (appointmentsTableBody) {
+                appointmentsTableBody.innerHTML = `<tr><td colspan="7" class="error-message">Failed to load appointments.</td></tr>`;
+            }
             if (noAppointmentsMessage) noAppointmentsMessage.style.display = 'block';
         }
     }
 
     function displayAdminAppointments(appointments) {
         if (!appointmentsTableBody) return;
-
-        appointmentsTableBody.innerHTML = ''; // Clear previous content
-        if (appointments.length === 0) {
+        appointmentsTableBody.innerHTML = '';
+        if (!Array.isArray(appointments) || appointments.length === 0) {
             if (noAppointmentsMessage) noAppointmentsMessage.style.display = 'block';
             return;
         }
         if (noAppointmentsMessage) noAppointmentsMessage.style.display = 'none';
 
-        // Sort appointments by date and then time
         appointments.sort((a, b) => {
             const dateA = new Date(`${a.date}T${a.time}`);
             const dateB = new Date(`${b.date}T${b.time}`);
@@ -432,33 +436,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${new Date(appointment.date).toLocaleDateString('en-NZ')}</td>
                 <td>${appointment.time}</td>
                 <td>${appointment.notes || 'N/A'}</td>
-                <td><button class="delete-btn" data-id="${appointment._id}">Delete</button></td>
+                <td><button class="delete-appointment-btn" data-id="${appointment._id || appointment.id}">Delete</button></td>
             `;
         });
 
-        // Add event listeners for delete buttons
-        document.querySelectorAll('.delete-btn').forEach(button => {
-            button.addEventListener('click', deleteAppointment);
+        document.querySelectorAll('.delete-appointment-btn').forEach(btn => {
+            btn.addEventListener('click', deleteAppointment);
         });
     }
 
     async function deleteAppointment(event) {
         const appointmentId = event.target.dataset.id;
+        if (!appointmentId) {
+            alert('Appointment ID not found.');
+            return;
+        }
         if (!confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
             return;
         }
 
         try {
-            const response = await fetch(`/api/appointments/${appointmentId}`, {
-                method: 'DELETE'
-            });
-
+            const response = await fetch(`/api/appointments/${appointmentId}`, { method: 'DELETE' });
             if (response.ok) {
                 alert('Appointment deleted successfully!');
-                fetchAppointments(); // Refresh the list in admin view
-                fetchPublicAppointments(); // NEW: Refresh public appointments list
+                fetchAppointments();
+                fetchPublicAppointments();
             } else {
-                const result = await response.json();
+                const result = await response.json().catch(() => ({}));
                 alert(result.message || 'Failed to delete appointment.');
             }
         } catch (error) {
@@ -467,14 +471,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Print Appointments Button Logic ---
+    // --- Print Appointments ---
     const printAppointmentsBtn = document.getElementById('print-appointments-btn');
-
     if (printAppointmentsBtn) {
-        printAppointmentsBtn.addEventListener('click', () => {
-            // Trigger the browser's print dialog
-            window.print();
-        });
+        printAppointmentsBtn.addEventListener('click', () => window.print());
     }
 
     // --- Fetch and Display Complaints/Reports (Admin) ---
@@ -482,27 +482,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const noComplaintsMessage = document.getElementById('no-complaints-message');
 
     async function fetchComplaints() {
-        if (!complaintsTableBody) return; // Exit if table body doesn't exist
-
+        if (!complaintsTableBody) return;
         try {
             const response = await fetch('/api/complaints');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const complaints = await response.json();
             displayAdminComplaints(complaints);
         } catch (error) {
             console.error('Error fetching complaints:', error);
-            complaintsTableBody.innerHTML = `<tr><td colspan="7" class="error-message">Failed to load reports/complaints.</td></tr>`; // Adjusted colspan
+            if (complaintsTableBody) {
+                complaintsTableBody.innerHTML = `<tr><td colspan="7" class="error-message">Failed to load reports/complaints.</td></tr>`;
+            }
             if (noComplaintsMessage) noComplaintsMessage.style.display = 'block';
         }
     }
 
     function displayAdminComplaints(complaints) {
         if (!complaintsTableBody) return;
-
-        complaintsTableBody.innerHTML = ''; // Clear previous content
-        if (complaints.length === 0) {
+        complaintsTableBody.innerHTML = '';
+        if (!Array.isArray(complaints) || complaints.length === 0) {
             if (noComplaintsMessage) noComplaintsMessage.style.display = 'block';
             return;
         }
@@ -511,39 +509,38 @@ document.addEventListener('DOMContentLoaded', () => {
         complaints.forEach(complaint => {
             const row = complaintsTableBody.insertRow();
             row.innerHTML = `
-                <td>${complaint.type.charAt(0).toUpperCase() + complaint.type.slice(1)}</td>
+                <td>${complaint.type ? (complaint.type.charAt(0).toUpperCase() + complaint.type.slice(1)) : 'N/A'}</td>
                 <td>${complaint.senderName}</td>
                 <td>${complaint.senderEmail || 'N/A'}</td>
                 <td>${complaint.senderPhone || 'N/A'}</td>
                 <td>${complaint.message}</td>
-                <td>${new Date(complaint.createdAt).toLocaleDateString('en-NZ')} ${new Date(complaint.createdAt).toLocaleTimeString('en-NZ')}</td>
-                <td><button class="delete-btn" data-id="${complaint._id}">Delete</button></td>
+                <td>${complaint.createdAt ? (new Date(complaint.createdAt).toLocaleDateString('en-NZ') + ' ' + new Date(complaint.createdAt).toLocaleTimeString('en-NZ')) : 'N/A'}</td>
+                <td><button class="delete-complaint-btn" data-id="${complaint._id || complaint.id}">Delete</button></td>
             `;
         });
 
-        // Add event listeners for delete buttons for complaints
-        document.querySelectorAll('#complaints-table .delete-btn').forEach(button => {
-            button.addEventListener('click', deleteComplaint);
+        document.querySelectorAll('.delete-complaint-btn').forEach(btn => {
+            btn.addEventListener('click', deleteComplaint);
         });
     }
 
-    // Function to delete a complaint/report
     async function deleteComplaint(event) {
         const complaintId = event.target.dataset.id;
+        if (!complaintId) {
+            alert('Complaint ID not found.');
+            return;
+        }
         if (!confirm('Are you sure you want to delete this report/complaint? This action cannot be undone.')) {
             return;
         }
 
         try {
-            const response = await fetch(`/api/complaints/${complaintId}`, {
-                method: 'DELETE'
-            });
-
+            const response = await fetch(`/api/complaints/${complaintId}`, { method: 'DELETE' });
             if (response.ok) {
                 alert('Report/Complaint deleted successfully!');
-                fetchComplaints(); // Refresh the list in admin view
+                fetchComplaints();
             } else {
-                const result = await response.json();
+                const result = await response.json().catch(() => ({}));
                 alert(result.message || 'Failed to delete report/complaint.');
             }
         } catch (error) {
@@ -552,24 +549,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // NEW ADDITION: Fetch and Display Job Applications (Admin)
+    // --- Job Applications (Admin) ---
     const applicationsTableBody = document.querySelector('#applications-table tbody');
     const noApplicationsMessage = document.getElementById('no-applications-message');
 
     async function fetchJobApplications() {
         if (!applicationsTableBody) return;
-
-        applicationsTableBody.innerHTML = ''; // Clear previous content
+        applicationsTableBody.innerHTML = '';
         if (noApplicationsMessage) {
-            noApplicationsMessage.style.display = 'none'; // Hide it initially
-            noApplicationsMessage.className = ''; // Clear any previous error/success classes
-            noApplicationsMessage.textContent = ''; // Clear text
+            noApplicationsMessage.style.display = 'none';
+            noApplicationsMessage.className = '';
+            noApplicationsMessage.textContent = '';
         }
 
         try {
-            const response = await fetch('/api/applications'); // New API endpoint
+            const response = await fetch('/api/applications');
             if (!response.ok) {
-                // Try to parse error message from server response
                 const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
                 throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
@@ -578,26 +573,24 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error fetching job applications:', error);
             if (noApplicationsMessage) {
-                noApplicationsMessage.className = 'error-message'; // Apply error styling
+                noApplicationsMessage.className = 'error-message';
                 noApplicationsMessage.textContent = `Failed to load job applications: ${error.message}`;
                 noApplicationsMessage.style.display = 'block';
             }
-            // Ensure table body is empty if an error occurred
             applicationsTableBody.innerHTML = '';
         }
     }
 
     function displayAdminApplications(applications) {
         if (!applicationsTableBody) return;
-
-        applicationsTableBody.innerHTML = ''; // Clear previous content
+        applicationsTableBody.innerHTML = '';
         if (noApplicationsMessage) {
-            noApplicationsMessage.style.display = 'none'; // Hide if data is being displayed
+            noApplicationsMessage.style.display = 'none';
             noApplicationsMessage.className = '';
             noApplicationsMessage.textContent = '';
         }
 
-        if (applications.length === 0) {
+        if (!Array.isArray(applications) || applications.length === 0) {
             if (noApplicationsMessage) {
                 noApplicationsMessage.textContent = 'No job applications found.';
                 noApplicationsMessage.style.display = 'block';
@@ -609,39 +602,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = applicationsTableBody.insertRow();
             row.innerHTML = `
                 <td>${application.name}</td>
-                <td>${application.experienceYears}</td>
+                <td>${application.experience || 'N/A'}</td>
                 <td>${application.address}</td>
                 <td>${application.phone}</td>
                 <td>${application.email}</td>
-                <td>${application.motivation ? application.motivation.substring(0, 50) + '...' : 'N/A'}</td>
-                <td>${new Date(application.createdAt).toLocaleDateString('en-NZ')} ${new Date(application.createdAt).toLocaleTimeString('en-NZ')}</td>
-                <td><button class="delete-btn" data-id="${application._id}">Delete</button></td>
+                <td>${application.motivation ? application.motivation.substring(0, 50) + (application.motivation.length > 50 ? '...' : '') : 'N/A'}</td>
+                <td>${application.createdAt ? (new Date(application.createdAt).toLocaleDateString('en-NZ') + ' ' + new Date(application.createdAt).toLocaleTimeString('en-NZ')) : 'N/A'}</td>
+                <td><button class="delete-application-btn" data-id="${application._id || application.id}">Delete</button></td>
             `;
         });
 
-        // Add event listeners for delete buttons for job applications
-        document.querySelectorAll('#applications-table .delete-btn').forEach(button => {
-            button.addEventListener('click', deleteJobApplication);
+        document.querySelectorAll('.delete-application-btn').forEach(btn => {
+            btn.addEventListener('click', deleteJobApplication);
         });
     }
 
-    // NEW ADDITION: Function to delete a job application
     async function deleteJobApplication(event) {
         const applicationId = event.target.dataset.id;
+        if (!applicationId) {
+            alert('Application ID not found.');
+            return;
+        }
         if (!confirm('Are you sure you want to delete this job application? This action cannot be undone.')) {
             return;
         }
 
         try {
-            const response = await fetch(`/api/applications/${applicationId}`, { // New API endpoint
-                method: 'DELETE'
-            });
-
+            const response = await fetch(`/api/applications/${applicationId}`, { method: 'DELETE' });
             if (response.ok) {
                 alert('Job application deleted successfully!');
-                fetchJobApplications(); // Refresh the list in admin view
+                fetchJobApplications();
             } else {
-                const result = await response.json();
+                const result = await response.json().catch(() => ({}));
                 alert(result.message || 'Failed to delete job application.');
             }
         } catch (error) {
@@ -650,15 +642,234 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- NEW: Public Appointments Logic ---
+    // --- Bookings (Admin + localStorage support) ---
+    const noBookingsMsg = document.getElementById('no-bookings-message');
+
+    // track the current tbody used for bookings and ensure listener attaches to the current tbody
+    let attachedBookingTbody = null;
+
+    // Handler function for booking delete clicks (attached to a tbody element)
+    async function handleBookingTbodyClick(e) {
+        const targetBtn = e.target.closest && e.target.closest('.delete-booking-btn');
+        if (!targetBtn) return;
+
+        const bookingId = (targetBtn.dataset.bookingId || '').toString();
+
+        if (!bookingId) {
+            alert("Booking ID not found!");
+            return;
+        }
+
+        if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+            return;
+        }
+
+        // Heuristic: if bookingId looks like a MongoDB ObjectId (24 hex chars) call backend DELETE
+        const isLikelyMongoId = typeof bookingId === 'string' && /^[0-9a-fA-F]{24}$/.test(bookingId);
+
+        if (isLikelyMongoId) {
+            try {
+                const res = await fetch(`/api/bookings/${bookingId}`, {
+                    method: "DELETE",
+                });
+                if (res.ok) {
+                    // Also remove any matching booking in localStorage (tempId/id/_id)
+                    try {
+                        let stored = JSON.parse(localStorage.getItem('bookings')) || [];
+                        const filtered = stored.filter(b => {
+                            const ids = [
+                                b && (b.tempId !== undefined ? b.tempId : null),
+                                b && (b.id !== undefined ? b.id : null),
+                                b && (b._id !== undefined ? b._id : null)
+                            ].filter(Boolean).map(x => x.toString());
+                            return !ids.includes(bookingId);
+                        });
+                        if (filtered.length !== stored.length) {
+                            localStorage.setItem('bookings', JSON.stringify(filtered));
+                        }
+                    } catch (lsErr) {
+                        console.error('Error cleaning up localStorage bookings after server delete:', lsErr);
+                    }
+
+                    alert("Booking deleted!");
+                    fetchBookings(); // refresh the table
+                } else {
+                    const text = await res.text().catch(() => '');
+                    // Try JSON if available
+                    try {
+                        const json = JSON.parse(text);
+                        alert(json.message || "Failed to delete booking.");
+                    } catch {
+                        alert(text || "Failed to delete booking.");
+                    }
+                }
+            } catch (err) {
+                console.error("Error deleting booking:", err);
+                alert("Error deleting booking: " + (err.message || err));
+            }
+        } else {
+            // treat as localStorage tempId or non-mongo id -> remove from localStorage
+            try {
+                let stored = JSON.parse(localStorage.getItem('bookings')) || [];
+                const filtered = stored.filter(b => {
+                    const ids = [
+                        b && (b.tempId !== undefined ? b.tempId : null),
+                        b && (b.id !== undefined ? b.id : null),
+                        b && (b._id !== undefined ? b._id : null)
+                    ].filter(Boolean).map(x => x.toString());
+                    return !ids.includes(bookingId);
+                });
+                localStorage.setItem('bookings', JSON.stringify(filtered));
+                alert('Booking deleted from local storage!');
+                fetchBookings();
+            } catch (err) {
+                console.error('Error deleting booking from localStorage:', err);
+                alert('Failed to delete booking from local storage.');
+            }
+        }
+    }
+
+    // Helper: save a booking to localStorage with tempId (use where you handle local booking creation)
+    function saveBookingToLocalStorage({ name, address, phone, cleaningType, notes, date }) {
+        const bookings = JSON.parse(localStorage.getItem('bookings')) || [];
+        const newBooking = {
+            tempId: Date.now().toString(),
+            name,
+            address,
+            phone,
+            cleaningType,
+            notes,
+            date: date || new Date().toISOString()
+        };
+        bookings.push(newBooking);
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+        return newBooking;
+    }
+
+    // --- Updated fetchBookings: supports server bookings and localStorage bookings (tempId) ---
+    async function fetchBookings() {
+        // Determine where to render: prefer existing table with id="booking-table", else use bookingsContainer
+        let tbody = document.querySelector('#booking-table tbody');
+        const usingExistingTable = !!tbody;
+
+        // If using bookingsContainer, clear previous table/content except the no-bookings-message
+        if (!usingExistingTable) {
+            if (!bookingsContainer) return;
+            Array.from(bookingsContainer.children).forEach(child => {
+                if (child.id !== 'no-bookings-message') child.remove();
+            });
+        } else {
+            // Clear existing table body
+            tbody.innerHTML = '';
+        }
+
+        // Fetch server bookings
+        let serverBookings = [];
+        try {
+            const res = await fetch('/api/bookings');
+            if (res.ok) {
+                serverBookings = await res.json();
+                if (!Array.isArray(serverBookings)) serverBookings = [];
+            } else {
+                console.warn('Failed to fetch server bookings, status:', res.status);
+            }
+        } catch (err) {
+            console.error('Error fetching server bookings:', err);
+        }
+
+        // Load localStorage bookings (legacy)
+        let localBookings = [];
+        try {
+            localBookings = JSON.parse(localStorage.getItem('bookings')) || [];
+            if (!Array.isArray(localBookings)) localBookings = [];
+        } catch (e) {
+            console.error('Error parsing localStorage bookings:', e);
+            localBookings = [];
+        }
+
+        // Combine
+        const allBookings = [...serverBookings, ...localBookings];
+
+        if (!allBookings || allBookings.length === 0) {
+            if (noBookingsMsg) {
+                noBookingsMsg.textContent = 'No bookings found.';
+                noBookingsMsg.style.display = 'block';
+            }
+            return;
+        }
+
+        if (noBookingsMsg) noBookingsMsg.style.display = 'none';
+
+        // If we're not using an existing table structure, create one inside bookingsContainer
+        if (!usingExistingTable) {
+            const table = document.createElement('table');
+            table.className = 'data-table';
+            table.id = 'booking-table'; // keep consistent id for potential referencing
+
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>Phone</th>
+                    <th>Cleaning Type</th>
+                    <th>Notes</th>
+                    <th>Date/Time</th>
+                    <th>Actions</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+
+            tbody = document.createElement('tbody');
+            table.appendChild(tbody);
+            bookingsContainer.appendChild(table);
+        }
+
+        // Populate rows
+        allBookings.forEach((booking) => {
+            const row = document.createElement('tr');
+
+            const name = booking.name || 'N/A';
+            const address = booking.address || 'N/A';
+            const phone = booking.phone || 'N/A';
+            const cleaningType = booking.cleaningType || 'N/A';
+            const notes = booking.notes || 'N/A';
+            const dateVal = booking.date || booking.createdAt || Date.now();
+            const dateTime = new Date(dateVal).toLocaleString('en-NZ');
+
+            // Always prefer MongoDB _id, ignore tempId if real id exists
+            const id = booking._id ? booking._id : (booking.id || booking.tempId || '');
+
+            row.innerHTML = `
+                <td>${name}</td>
+                <td>${address}</td>
+                <td>${phone}</td>
+                <td>${cleaningType}</td>
+                <td>${notes}</td>
+                <td>${dateTime}</td>
+                <td>
+                    <button class="delete-booking-btn" data-booking-id="${id}">Delete</button>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        // Attach delete handler to the current tbody (only once per tbody element)
+        if (tbody && attachedBookingTbody !== tbody) {
+            tbody.addEventListener('click', handleBookingTbodyClick);
+            attachedBookingTbody = tbody;
+        }
+    }
+
+    // --- Public Appointments ---
     const publicAppointmentsListDiv = document.getElementById('appointments-list');
-    let publicAppointmentsTableBody; // Will be initialized after table creation
-    let noPublicAppointmentsMessage; // Will be initialized after table creation
+    let publicAppointmentsTableBody;
+    let noPublicAppointmentsMessage;
 
     async function fetchPublicAppointments() {
-        if (!publicAppointmentsListDiv) return; // Exit if public appointments section doesn't exist
+        if (!publicAppointmentsListDiv) return;
 
-        // Create table structure if it doesn't exist
         if (!publicAppointmentsTableBody) {
             publicAppointmentsListDiv.innerHTML = `
                 <table id="public-appointments-table">
@@ -679,14 +890,12 @@ document.addEventListener('DOMContentLoaded', () => {
             noPublicAppointmentsMessage = document.getElementById('no-public-appointments-message');
         }
 
-        publicAppointmentsTableBody.innerHTML = ''; // Clear previous content
-        if (noPublicAppointmentsMessage) noPublicAppointmentsMessage.style.display = 'none'; // Hide message initially
+        publicAppointmentsTableBody.innerHTML = '';
+        if (noPublicAppointmentsMessage) noPublicAppointmentsMessage.style.display = 'none';
 
         try {
             const response = await fetch('/api/appointments');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const appointments = await response.json();
             displayPublicAppointments(appointments);
         } catch (error) {
@@ -703,17 +912,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function displayPublicAppointments(appointments) {
         if (!publicAppointmentsTableBody) return;
+        publicAppointmentsTableBody.innerHTML = '';
 
-        publicAppointmentsTableBody.innerHTML = ''; // Clear previous content
-
-        // Filter for future appointments (optional, but "upcoming" implies this)
         const now = new Date();
-        const upcomingAppointments = appointments.filter(appointment => {
-            const appointmentDateTime = new Date(`${appointment.date}T${appointment.time}`);
-            return appointmentDateTime > now;
+        const upcomingAppointments = (appointments || []).filter(a => {
+            const dt = new Date(`${a.date}T${a.time}`);
+            return dt > now;
         });
 
-        // Sort upcoming appointments by date and then time
         upcomingAppointments.sort((a, b) => {
             const dateA = new Date(`${a.date}T${a.time}`);
             const dateB = new Date(`${b.date}T${b.time}`);
@@ -741,27 +947,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Public-facing elements (Job Application Modal, Review Section, Complaint/Report Form) ---
+    // --- Public Job Application Modal & Submit ---
     const applyJobsBtn = document.getElementById('apply-jobs-btn');
     const jobApplicationModal = document.getElementById('job-application-modal');
     const jobApplicationForm = document.getElementById('job-application-form');
     const applicationMessage = document.getElementById('application-message');
 
-    if (applyJobsBtn) {
+    if (applyJobsBtn && jobApplicationModal && jobApplicationForm) {
         applyJobsBtn.addEventListener('click', () => {
             jobApplicationModal.style.display = 'block';
-            applicationMessage.textContent = ''; // Clear previous messages
+            applicationMessage.textContent = '';
             jobApplicationForm.reset();
         });
-    }
 
-    if (jobApplicationForm) {
         jobApplicationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const formData = {
                 name: document.getElementById('applicantName').value,
-                experienceYears: parseInt(document.getElementById('applicantExperience').value),
+                experienceYears: parseInt(document.getElementById('applicantExperience').value, 10),
                 address: document.getElementById('applicantAddress').value,
                 phone: document.getElementById('applicantPhone').value,
                 email: document.getElementById('applicantEmail').value,
@@ -771,35 +975,35 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('/api/applications', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
                 const result = await response.json();
-
                 if (response.ok) {
-                    applicationMessage.className = 'success-message';
-                    applicationMessage.textContent = 'Application submitted successfully!';
+                    if (applicationMessage) {
+                        applicationMessage.className = 'success-message';
+                        applicationMessage.textContent = 'Application submitted successfully!';
+                    }
                     jobApplicationForm.reset();
-                    // Optionally close modal after a delay
-                    setTimeout(() => {
-                        jobApplicationModal.style.display = 'none';
-                    }, 2000);
+                    setTimeout(() => { if (jobApplicationModal) jobApplicationModal.style.display = 'none'; }, 1500);
                 } else {
-                    applicationMessage.className = 'error-message';
-                    applicationMessage.textContent = result.message || 'Failed to submit application.';
+                    if (applicationMessage) {
+                        applicationMessage.className = 'error-message';
+                        applicationMessage.textContent = result.message || 'Failed to submit application.';
+                    }
                 }
             } catch (error) {
                 console.error('Error submitting job application:', error);
-                applicationMessage.className = 'error-message';
-                applicationMessage.textContent = 'An error occurred. Please try again.';
+                if (applicationMessage) {
+                    applicationMessage.className = 'error-message';
+                    applicationMessage.textContent = 'An error occurred. Please try again.';
+                }
             }
         });
     }
 
-    // --- Star Rating Logic ---
+    // --- Star Rating (Public) ---
     const starRatingContainer = document.querySelector('.star-rating');
     const reviewThankYouModal = document.getElementById('review-thank-you-modal');
 
@@ -807,9 +1011,8 @@ document.addEventListener('DOMContentLoaded', () => {
         starRatingContainer.addEventListener('click', async (e) => {
             if (e.target.classList.contains('star')) {
                 const rating = e.target.dataset.value;
-                // Visually update stars
                 document.querySelectorAll('.star').forEach(star => {
-                    if (parseInt(star.dataset.value) <= rating) {
+                    if (parseInt(star.dataset.value, 10) <= parseInt(rating, 10)) {
                         star.classList.add('selected');
                     } else {
                         star.classList.remove('selected');
@@ -819,21 +1022,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const response = await fetch('/api/reviews', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ rating: parseInt(rating) })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rating: parseInt(rating, 10) })
                     });
 
                     if (response.ok) {
-                        // Show thank you modal
-                        reviewThankYouModal.style.display = 'block';
-                        // Optionally reset stars after a delay or after modal closes
+                        if (reviewThankYouModal) reviewThankYouModal.style.display = 'block';
                         setTimeout(() => {
                             document.querySelectorAll('.star').forEach(star => star.classList.remove('selected'));
-                        }, 3000); // Reset after 3 seconds
+                        }, 3000);
                     } else {
-                        const result = await response.json();
+                        const result = await response.json().catch(() => ({}));
                         alert(result.message || 'Failed to submit review.');
                     }
                 } catch (error) {
@@ -844,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Complaint/Report Form Logic ---
+    // --- Complaint/Report Form (Public) ---
     const complaintReportForm = document.getElementById('complaint-report-form');
     const formMessage = document.getElementById('form-message');
 
@@ -863,35 +1062,84 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('/api/complaints', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
                 const result = await response.json();
-
                 if (response.ok) {
-                    formMessage.className = 'success-message';
-                    formMessage.textContent = 'Message sent successfully!';
-                    complaintReportForm.reset();
-                    // Optionally refresh admin complaints list if admin is logged in and viewing
-                    if (sessionStorage.getItem('isAdminLoggedIn') === 'true') {
-                        fetchComplaints();
+                    if (formMessage) {
+                        formMessage.className = 'success-message';
+                        formMessage.textContent = 'Message sent successfully!';
                     }
+                    complaintReportForm.reset();
+                    if (sessionStorage.getItem('isAdminLoggedIn') === 'true') fetchComplaints();
                 } else {
-                    formMessage.className = 'error-message';
-                    formMessage.textContent = result.message || 'Failed to send message.';
+                    if (formMessage) {
+                        formMessage.className = 'error-message';
+                        formMessage.textContent = result.message || 'Failed to send message.';
+                    }
                 }
             } catch (error) {
                 console.error('Error sending message:', error);
-                formMessage.className = 'error-message';
-                formMessage.textContent = 'An error occurred. Please try again.';
+                if (formMessage) {
+                    formMessage.className = 'error-message';
+                    formMessage.textContent = 'An error occurred. Please try again.';
+                }
             }
         });
     }
 
-    // Initial calls on page load
-    checkAdminStatus(); // Existing admin check
-    fetchPublicAppointments(); // NEW: Load public appointments on page load
+    // --- User Appointment Form (Public Users) ---
+    const userAppointmentForm = document.getElementById('user-appointment-form');
+    const userAppointmentMessage = document.getElementById('user-appointment-message');
+
+    if (userAppointmentForm) {
+        userAppointmentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = {
+                clientName: document.getElementById('userClientName').value,
+                contactNumber: document.getElementById('userContactNumber').value,
+                service: document.getElementById('userService').value,
+                date: document.getElementById('userAppointmentDate').value,
+                time: document.getElementById('userAppointmentTime').value,
+                notes: document.getElementById('userNotes').value
+            };
+
+            try {
+                const response = await fetch('/api/appointments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    if (userAppointmentMessage) {
+                        userAppointmentMessage.className = 'success-message';
+                        userAppointmentMessage.textContent = 'Appointment booked successfully!';
+                    }
+                    userAppointmentForm.reset();
+                    fetchPublicAppointments(); // refresh public list
+                } else {
+                    if (userAppointmentMessage) {
+                        userAppointmentMessage.className = 'error-message';
+                        userAppointmentMessage.textContent = result.message || 'Failed to book appointment.';
+                    }
+                }
+            } catch (error) {
+                console.error('Error booking appointment:', error);
+                if (userAppointmentMessage) {
+                    userAppointmentMessage.className = 'error-message';
+                    userAppointmentMessage.textContent = 'An error occurred. Please try again.';
+                }
+            }
+        });
+    }
+
+    // --- Initial Calls ---
+    checkAdminStatus();
+    fetchPublicAppointments();
+    // fetchBookings() is called after admin login or when admin clicks view bookings
 });
