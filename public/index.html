@@ -1,19 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Paul's Cleaning Crews</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Favicon using the logo -->
     <link rel="icon" href="https://i.ibb.co/GyKhm3B/Screenshot-2025-08-10-094232.png" type="image/png">
+    <style>
+      /* Minimal inline styles for basic modal visibility/tests (you can keep these in style.css) */
+      .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto;
+               background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+      .modal .modal-content { background: #fff; margin: 5% auto; padding: 20px; border-radius: 6px; max-width: 600px; position: relative; }
+      .close-button { position: absolute; right: 12px; top: 6px; font-size: 22px; cursor: pointer; }
+      .btn { cursor: pointer; padding: 8px 12px; }
+      .star { cursor: pointer; font-size: 28px; color: #ccc; }
+      .star.selected, .star.hover { color: gold; }
+
+      /* Styles to present appointments in rows/columns */
+      #appointments-list { margin-top: 12px; }
+      #appointments-list .appointments-wrapper { display: grid; gap: 8px; }
+      #appointments-list .appointment-header {
+        display: grid;
+        grid-template-columns: 180px 1fr 160px;
+        gap: 12px;
+        padding: 8px 10px;
+        background: #f5f5f5;
+        border-radius: 6px;
+        font-weight: 700;
+        align-items: center;
+      }
+      #appointments-list .appointment-row {
+        display: grid;
+        grid-template-columns: 180px 1fr 160px;
+        gap: 12px;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #e6e6e6;
+        background: #fff;
+        align-items: center;
+      }
+      #appointments-list .appointment-row .col {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+      /* Responsive: stack columns on narrow screens */
+      @media (max-width: 640px) {
+        #appointments-list .appointment-header,
+        #appointments-list .appointment-row {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+        #appointments-list .appointment-row .col { white-space: normal; }
+      }
+    </style>
 </head>
 <body>
     <header>
         <nav>
             <div class="logo">
                 <a href="/">
-                    <img src="https://i.ibb.co/GyKhm3B/Screenshot-2025-08-10-094232.png" alt="Paul's Cleaning Crews Logo">
+                    <img src="https://i.ibb.co/GyKhm3B/Screenshot-2025-08-10-094232.png" alt="Paul's Cleaning Crews Logo" />
                 </a>
             </div>
             <ul class="nav-links">
@@ -26,8 +74,9 @@
                 <li><a href="#reviews">Reviews</a></li>
                 <li><a href="#contact">Contact</a></li>
                 <li><a href="/admin" class="admin-login-btn">Admin Login</a></li>
-                <li><button id="apply-jobs-btn" class="btn">Apply for Jobs</button></li>
-                <li><button id="settings-btn" class="settings-btn" aria-label="Settings">⚙️</button></li>
+                <li><button id="apply-jobs-btn" class="btn" data-target="job-application-modal">Apply for Jobs</button></li>
+                <li><button id="openBookingForm" class="btn" data-target="bookingForm">Book a Cleaning</button></li>
+                <li><button id="settings-btn" class="settings-btn btn" data-target="settings-modal" aria-label="Settings">⚙️</button></li>
             </ul>
         </nav>
     </header>
@@ -37,7 +86,6 @@
             <div class="hero-content">
                 <h1>Paul's Cleaning Crews</h1>
                 <p>Your trusted partner for a sparkling clean home and office.</p>
-                <!-- Removed "Get a Free Quote" button as requested -->
             </div>
         </section>
 
@@ -77,37 +125,37 @@
                     <img src="https://i.ibb.co/Q73BpQRp/house-cleaning.jpg" alt="Residential Cleaning">
                     <h3>Residential Cleaning</h3>
                     <p>Keep your home spotless and comfortable with our comprehensive residential cleaning services.</p>
-                    <button class="learn-more-btn" data-service="residential">Learn More</button>
+                    <button class="learn-more-btn btn" data-service="residential" data-target="service-modal">Learn More</button>
                 </div>
                 <div class="service-item">
                     <img src="https://i.ibb.co/fzrTBkPp/unnamed.jpg" alt="Commercial Cleaning">
                     <h3>Commercial Cleaning</h3>
                     <p>Ensure a clean and professional environment for your business with our tailored commercial cleaning solutions.</p>
-                    <button class="learn-more-btn" data-service="commercial">Learn More</button>
+                    <button class="learn-more-btn btn" data-service="commercial" data-target="service-modal">Learn More</button>
                 </div>
                 <div class="service-item">
                     <img src="https://i.ibb.co/dJx5DYrj/Deep-Cleaning-3-1024x676.jpg" alt="Deep Cleaning">
                     <h3>Deep Cleaning</h3>
                     <p>For a thorough refresh, our deep cleaning service tackles every nook and cranny, leaving your space pristine.</p>
-                    <button class="learn-more-btn" data-service="deep">Learn More</button>
+                    <button class="learn-more-btn btn" data-service="deep" data-target="service-modal">Learn More</button>
                 </div>
                 <div class="service-item">
                     <img src="https://i.ibb.co/GQq4yBvG/Move-In-Move-Out-Cleaning-Checklist-Latest-2021-Update.jpg" alt="Move-in/Move-out Cleaning">
                     <h3>Move-in/Move-out Cleaning</h3>
                     <p>Make moving easier with our specialized cleaning services for empty properties, ensuring they are ready for new occupants.</p>
-                    <button class="learn-more-btn" data-service="move">Learn More</button>
+                    <button class="learn-more-btn btn" data-service="move" data-target="service-modal">Learn More</button>
                 </div>
                 <div class="service-item">
                     <img src="https://i.ibb.co/G3s4rzD5/Best-Pressure-Washer-for-Drain-Pipe-Cleaning-Blockages.jpg" alt="Pressure Pipe Cleaning">
                     <h3>Pressure Pipe Cleaning</h3>
                     <p>Our advanced pressure cleaning techniques effectively clear blockages and maintain your pipes' efficiency.</p>
-                    <button class="learn-more-btn" data-service="pressure">Learn More</button>
+                    <button class="learn-more-btn btn" data-service="pressure" data-target="service-modal">Learn More</button>
                 </div>
             </div>
         </section>
 
-        <!-- Service Modals (hidden by default) -->
-        <div id="service-modal" class="modal">
+        <!-- Service Modal (hidden by default) -->
+        <div id="service-modal" class="modal" aria-hidden="true">
             <div class="modal-content">
                 <span class="close-button" aria-label="Close Modal">&times;</span>
                 <h3 id="modal-title"></h3>
@@ -115,7 +163,6 @@
             </div>
         </div>
 
-        <!-- NEW: Our Video Gallery Section -->
         <section id="gallery" class="video-gallery-section">
             <h2>Our Video Gallery</h2>
             <div class="video-container">
@@ -126,7 +173,6 @@
                 </iframe>
             </div>
         </section>
-        <!-- End NEW: Our Video Gallery Section -->
 
         <section id="areas" class="servicing-areas">
             <h2>Our Servicing Areas</h2>
@@ -140,24 +186,21 @@
 
         <section id="appointments" class="public-appointments">
             <h2>Upcoming Appointments</h2>
-            <div id="appointments-list">
-                <!-- Appointments will be loaded here by JavaScript -->
-                <p>Loading appointments...</p>
-            </div>
+            <div id="appointments-list"></div>
         </section>
 
-        <!-- Star Review Section -->
         <section id="reviews" class="review-section">
             <h2>Rate Our Service</h2>
             <p>We'd love to hear your feedback! Click on a star to rate us.</p>
             <div class="star-rating" data-rating="0">
-                <span class="star" data-value="1">&#9733;</span>
-                <span class="star" data-value="2">&#9733;</span>
-                <span class="star" data-value="3">&#9733;</span>
-                <span class="star" data-value="4">&#9733;</span>
-                <span class="star" data-value="5">&#9733;</span>
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
             </div>
-            <p id="average-rating-display"></p> <!-- Optional: for displaying average rating -->
+
+            <p id="average-rating-display">Loading ratings...</p>
         </section>
 
         <section id="contact" class="contact-us">
@@ -200,7 +243,7 @@
     </footer>
 
     <!-- Settings Modal -->
-    <div id="settings-modal" class="modal">
+    <div id="settings-modal" class="modal" aria-hidden="true">
         <div class="modal-content">
             <span class="close-button" aria-label="Close Settings">&times;</span>
             <h3>Settings</h3>
@@ -212,7 +255,7 @@
     </div>
 
     <!-- Job Application Modal -->
-    <div id="job-application-modal" class="modal">
+    <div id="job-application-modal" class="modal" aria-hidden="true">
         <div class="modal-content">
             <span class="close-button" aria-label="Close Job Application Form">&times;</span>
             <h3>Apply for a Job</h3>
@@ -247,15 +290,372 @@
         </div>
     </div>
 
+    <!-- Hidden booking form -->
+    <div id="bookingForm" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <span class="close-button" aria-label="Close Booking Form">&times;</span>
+        <h3>Book a Cleaning</h3>
+        <form id="booking-form">
+          <div class="form-group">
+            <label for="bookingName">Name:</label>
+            <input type="text" id="bookingName" name="bookingName" required>
+          </div>
+          <div class="form-group">
+            <label for="bookingAddress">Address:</label>
+            <input type="text" id="bookingAddress" name="bookingAddress" required>
+          </div>
+          <div class="form-group">
+            <label for="bookingPhone">Phone:</label>
+            <input type="text" id="bookingPhone" name="bookingPhone" required>
+          </div>
+          <div class="form-group">
+            <label for="bookingType">Cleaning Type:</label>
+            <select id="bookingType" name="bookingType" required>
+              <option value="">Select</option>
+              <option value="Standard Cleaning">Standard Cleaning</option>
+              <option value="Deep Cleaning">Deep Cleaning</option>
+              <option value="Move-In/Move-Out">Move-In/Move-Out</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="bookingDate">Preferred Date:</label>
+            <input type="date" id="bookingDate" name="bookingDate" required>
+          </div>
+          <div class="form-group">
+            <label for="bookingNotes">Notes (optional):</label>
+            <textarea id="bookingNotes" name="bookingNotes" rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn">Confirm Booking</button>
+        </form>
+      </div>
+    </div>
+
     <!-- Review Thank You Modal -->
-    <div id="review-thank-you-modal" class="modal">
+    <div id="review-thank-you-modal" class="modal" aria-hidden="true">
         <div class="modal-content">
             <span class="close-button" aria-label="Close Review Thank You">&times;</span>
             <h3>Thank You!</h3>
-            <p>Thank you for your Review and visiting our site :)</p>
+            <p>Thank you for your review and visiting our site :)</p>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+      // ---------- Utilities ----------
+      const openModal = (modalId) => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+          modal.style.display = 'flex'; // modal CSS uses flex for centering if desired
+          modal.setAttribute('aria-hidden', 'false');
+        }
+      };
+
+      const closeModal = (modalEl) => {
+        if (!modalEl) return;
+        modalEl.style.display = 'none';
+        modalEl.setAttribute('aria-hidden', 'true');
+      };
+
+      // ---------- Modal openers ----------
+      // Use data-target attributes on buttons to open modals
+      document.querySelectorAll('[data-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.dataset.target;
+          if (!targetId) return;
+          // If this button also has data-service, populate service modal content
+          if (targetId === 'service-modal' && btn.dataset.service) {
+            populateServiceModal(btn.dataset.service);
+          }
+          openModal(targetId);
+        });
+      });
+
+      // ---------- Close modal buttons ----------
+      document.querySelectorAll('.close-button').forEach(closeBtn => {
+        closeBtn.addEventListener('click', () => {
+          const modal = closeBtn.closest('.modal');
+          closeModal(modal);
+        });
+      });
+
+      // Close when clicking outside any modal-content
+      window.addEventListener('click', (e) => {
+        if (e.target.classList && e.target.classList.contains('modal')) {
+          closeModal(e.target);
+        }
+      });
+
+      // Close with Escape key
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          document.querySelectorAll('.modal').forEach(m => {
+            if (m.style.display === 'block' || m.style.display === 'flex') {
+              closeModal(m);
+            }
+          });
+        }
+      });
+
+      // ---------- Booking form submission ----------
+      const bookingForm = document.getElementById('booking-form');
+      if (bookingForm) {
+        bookingForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const bookingData = {
+            name: document.getElementById('bookingName').value,
+            address: document.getElementById('bookingAddress').value,
+            phone: document.getElementById('bookingPhone').value,
+            cleaningType: document.getElementById('bookingType').value,
+            notes: document.getElementById('bookingNotes').value,
+            date: document.getElementById('bookingDate').value
+          };
+          try {
+            const res = await fetch('/api/bookings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(bookingData)
+            });
+            const data = await res.json().catch(()=>({}));
+            if (res.ok) {
+              alert('✅ Booking successful!');
+              bookingForm.reset();
+              closeModal(document.getElementById('bookingForm'));
+            } else {
+              alert('❌ ' + (data.message || 'Failed to create booking'));
+            }
+          } catch (err) {
+            alert('Error submitting booking: ' + err.message);
+          }
+        });
+      }
+
+      // ---------- Job application submission ----------
+      const jobForm = document.getElementById('job-application-form');
+      if (jobForm) {
+        jobForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const appData = {
+            name: document.getElementById('applicantName').value,
+            experience: document.getElementById('applicantExperience').value,
+            address: document.getElementById('applicantAddress').value,
+            phone: document.getElementById('applicantPhone').value,
+            email: document.getElementById('applicantEmail').value,
+            motivation: document.getElementById('applicantMotivation').value
+          };
+          try {
+            const res = await fetch('/api/applications', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(appData)
+            });
+            const data = await res.json().catch(()=>({}));
+            if (res.ok) {
+              document.getElementById('application-message').textContent = 'Application submitted. Thank you!';
+              jobForm.reset();
+              setTimeout(()=>closeModal(document.getElementById('job-application-modal')), 1200);
+            } else {
+              document.getElementById('application-message').textContent = data.message || 'Failed to submit application';
+            }
+          } catch (err) {
+            document.getElementById('application-message').textContent = 'Error: ' + err.message;
+          }
+        });
+      }
+
+      // ---------- Complaint/Report submission ----------
+      const complaintForm = document.getElementById('complaint-report-form');
+      if (complaintForm) {
+        complaintForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const payload = {
+            name: document.getElementById('senderName').value,
+            email: document.getElementById('senderEmail').value,
+            phone: document.getElementById('senderPhone').value,
+            type: document.getElementById('messageType').value,
+            message: document.getElementById('message').value
+          };
+          try {
+            const res = await fetch('/api/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(()=>({}));
+            const msgEl = document.getElementById('form-message');
+            if (res.ok) {
+              msgEl.textContent = 'Message sent. Thank you!';
+              complaintForm.reset();
+              setTimeout(()=>msgEl.textContent = '', 3000);
+            } else {
+              msgEl.textContent = data.message || 'Failed to send message';
+            }
+          } catch (err) {
+            document.getElementById('form-message').textContent = 'Error: ' + err.message;
+          }
+        });
+      }
+
+      // ---------- Star rating handling ----------
+      const stars = document.querySelectorAll('.star-rating .star');
+      const ratingDisplay = document.getElementById('average-rating-display');
+      let currentRating = 0;
+
+      const setStarVisual = (rating) => {
+        stars.forEach(s => {
+          const value = parseInt(s.dataset.value, 10);
+          if (value <= rating) s.classList.add('selected'); else s.classList.remove('selected');
+        });
+      };
+
+      stars.forEach(star => {
+        star.addEventListener('mouseenter', () => {
+          const val = parseInt(star.dataset.value, 10);
+          stars.forEach(s => s.classList.toggle('hover', parseInt(s.dataset.value, 10) <= val));
+        });
+        star.addEventListener('mouseleave', () => {
+          stars.forEach(s => s.classList.remove('hover'));
+        });
+        star.addEventListener('click', async () => {
+          const val = parseInt(star.dataset.value, 10);
+          currentRating = val;
+          setStarVisual(val);
+          // Optionally POST the rating
+          try {
+            const res = await fetch('/api/reviews', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rating: val })
+            });
+            if (res.ok) {
+              // Show thank-you modal
+              openModal('review-thank-you-modal');
+              // refresh immediately after submit
+              if (typeof fetchAverageRating === 'function') fetchAverageRating();
+            } else {
+              // still show the thank-you (or show an error)
+              openModal('review-thank-you-modal');
+            }
+          } catch (err) {
+            openModal('review-thank-you-modal');
+          }
+        });
+      });
+
+      // ---------- fetchAverageRating (restores average rating display) ----------
+      async function fetchAverageRating() {
+        if (!ratingDisplay) return;
+
+        try {
+          const res = await fetch('/api/reviews/average');
+          if (!res.ok) throw new Error('Failed to fetch');
+
+          const data = await res.json();
+          if (data && data.totalRatings > 0) {
+            const avg = parseFloat(data.averageRating) || 0;
+            const total = data.totalRatings || 0;
+
+            ratingDisplay.textContent = `${avg.toFixed(1)} out of 5 ratings (${total} total)`;
+            setStarVisual(Math.round(avg));
+          } else {
+            ratingDisplay.textContent = 'No ratings yet. Be the first!';
+            setStarVisual(0);
+          }
+        } catch (err) {
+          console.error('Error fetching average rating:', err);
+          ratingDisplay.textContent = 'Could not load ratings.';
+          setStarVisual(0);
+        }
+      }
+
+      // call it once on page load
+      fetchAverageRating();
+      // refresh every 10s
+      setInterval(fetchAverageRating, 10000);
+
+      // ---------- Service modal population ----------
+      const SERVICE_INFO = {
+        residential: {
+          title: 'Residential Cleaning',
+          desc: 'Comprehensive residential cleaning including dusting, vacuuming, bathrooms, kitchens and more. We tailor our visits to your home\'s needs.'
+        },
+        commercial: {
+          title: 'Commercial Cleaning',
+          desc: 'Reliable commercial cleaning for offices and retail spaces. Flexible scheduling and a professional team to keep your workspace presentable.'
+        },
+        deep: {
+          title: 'Deep Cleaning',
+          desc: 'A thorough deep clean for all the nooks and crannies — oven, skirting boards, behind appliances and more for a fresh start.'
+        },
+        move: {
+          title: 'Move-in/Move-out Cleaning',
+          desc: 'Specialised services for empty properties to make moving easier — we ensure the place is spotless for the next occupant.'
+        },
+        pressure: {
+          title: 'Pressure Pipe Cleaning',
+          desc: 'High-pressure cleaning to clear blockages and maintain pipe performance. Safe, effective, and handled by trained staff.'
+        }
+      };
+
+      function populateServiceModal(key) {
+        const info = SERVICE_INFO[key] || { title: 'Service', desc: 'Details coming soon.' };
+        document.getElementById('modal-title').textContent = info.title;
+        document.getElementById('modal-description').textContent = info.desc;
+      }
+
+      // ---------- loadAppointments (table builder version) ----------
+      (async function loadAppointments() {
+        const list = document.getElementById('appointments-list');
+        try {
+          const res = await fetch('/api/appointments');
+          if (!res.ok) throw new Error('Failed to load');
+          const data = await res.json();
+
+          if (!Array.isArray(data) || data.length === 0) {
+            list.innerHTML = '<p>No upcoming appointments.</p>';
+            return;
+          }
+
+          // Build HTML table
+          let tableHTML = `
+            <table border="1" cellspacing="0" cellpadding="6" 
+                   style="width:100%; border-collapse: collapse; text-align:left;">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Service</th>
+                  <th>Client</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          tableHTML += data.map(a => `
+            <tr>
+              <td>${a.date || a.startDate || '-'}</td>
+              <td>${a.time || a.startTime || '-'}</td>
+              <td>${a.service || a.serviceName || a.cleaningType || 'Unknown service'}</td>
+              <td>${a.clientName || a.client || a.name || a.customerName || 'N/A'}</td>
+            </tr>
+          `).join('');
+
+          tableHTML += `</tbody></table>`;
+
+          list.innerHTML = tableHTML;
+
+        } catch (err) {
+          list.innerHTML = '<p>Failed to load appointments.</p>';
+          console.error(err);
+        }
+      })();
+
+      // ---------- Theme toggle (optional) ----------
+      const themeToggle = document.getElementById('theme-toggle');
+      if (themeToggle) {
+        themeToggle.addEventListener('change', () => {
+          document.documentElement.classList.toggle('dark-mode', themeToggle.checked);
+        });
+      }
+
+    </script>
 </body>
 </html>
