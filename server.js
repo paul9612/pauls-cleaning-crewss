@@ -1,17 +1,20 @@
-// server.js
 console.log("server.js has started")
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
-const dotenv = require('dotenv')
+const dotenv = require('dotenv');
+const cors = require('cors');
 
 // Load environment variables from .env
 dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json()); // For parsing application/json request bodies
+app.use(express.urlencoded({ extended: true })); // For parsing form submissions (x-www-form-urlencoded)
+app.use(cors()); // Enable CORS for development (remove/lock down in production)
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from the 'public' directory
 
 // MongoDB Connection
@@ -27,8 +30,9 @@ const appointmentSchema = new mongoose.Schema({
   service: { type: String, required: true },
   date: { type: String, required: true }, // Storing as string for simplicity with HTML date input
   time: { type: String, required: true }, // Storing as string for simplicity with HTML time input
-  notes: { type: String }
-}, { timestamps: true }); // Adds createdAt and updatedAt timestamps
+  notes: { type: String },
+  dateTime: { type: Date, required: true }  // ✅ combined for sorting/filtering
+}, { timestamps: true });
 
 const complaintReportSchema = new mongoose.Schema({
   senderName: { type: String, required: true },
@@ -38,10 +42,11 @@ const complaintReportSchema = new mongoose.Schema({
   type: { type: String, enum: ['complaint', 'report'], required: true } // 'complaint' or 'report'
 }, { timestamps: true });
 
-// NEW ADDITION: Job Application Schema
+// FIXED: Job Application Schema uses "experience" to match frontend payload.
+// We store experience as Number (Mongoose will cast string numbers like "4" to Number).
 const jobApplicationSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  experienceYears: { type: Number, required: true, min: 0 },
+  experience: { type: Number, required: true, min: 0 }, // expects numeric years
   address: { type: String, required: true },
   phone: { type: String, required: true },
   email: { type: String, required: true },
@@ -51,8 +56,6 @@ const jobApplicationSchema = new mongoose.Schema({
 // NEW ADDITION: Review Schema
 const reviewSchema = new mongoose.Schema({
   rating: { type: Number, required: true, min: 1, max: 5 },
-  // You might want to add a userId or IP address here to prevent multiple reviews from the same person
-  // For this demo, we'll keep it simple.
 }, { timestamps: true });
 
 // NEW ADDITION: Comment Schema
@@ -70,18 +73,23 @@ const clientSchema = new mongoose.Schema({
   address: { type: String }
 }, { timestamps: true });
 
+// ✅ NEW ADDITION: Booking Schema
+const bookingSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  address: { type: String, required: true },
+  phone: { type: String, required: true },
+  cleaningType: { type: String, required: true },
+  notes: { type: String },
+  date: { type: String } // keep date field for bookings
+}, { timestamps: true });
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);
 const ComplaintReport = mongoose.model('ComplaintReport', complaintReportSchema);
-// NEW ADDITION: Job Application Model
 const JobApplication = mongoose.model('JobApplication', jobApplicationSchema);
-// NEW ADDITION: Review Model
 const Review = mongoose.model('Review', reviewSchema);
-// NEW ADDITION: Comment Model
 const Comment = mongoose.model('Comment', commentSchema);
-// NEW ADDITION: Client Model
 const Client = mongoose.model('Client', clientSchema);
-
+const Booking = mongoose.model('Booking', bookingSchema);
 
 // Admin Credentials (FOR DEMONSTRATION PURPOSES ONLY - In a real app, use hashed passwords and JWTs/sessions)
 const ADMIN_USERNAME = 'AdminPauls';
@@ -100,7 +108,6 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 // Middleware to simulate admin authentication (for this demo, it just passes through)
-// In a real application, this would verify a session token or JWT.
 const isAdminAuthenticated = (req, res, next) => {
     // For this demo, we rely on the client-side admin.js to only send requests
     // if the user has successfully "logged in". A real app needs server-side session/token validation.
@@ -147,17 +154,83 @@ app.delete('/api/clients/:id', isAdminAuthenticated, async (req, res) => {
   }
 });
 
+// ✅ NEW ADDITION: Booking Routes
+// Create Booking (Public)
+app.post('/api/bookings', async (req, res) => {
+  try {
+    const { name, address, phone, cleaningType, notes, date } = req.body;
+
+    if (!name || !address || !phone || !cleaningType || !date) {
+      return res.status(400).json({ message: 'Name, address, phone, cleaning type, and date are required.' });
+    }
+
+    const newBooking = new Booking({ name, address, phone, cleaningType, notes, date });
+    await newBooking.save();
+
+    res.status(201).json({ message: 'Booking successful!', booking: newBooking });
+  } catch (error) {
+    res.status(400).json({ message: 'Error creating booking', error: error.message });
+  }
+});
+
+// Get All Bookings (Admin only)
+app.get('/api/bookings', isAdminAuthenticated, async (req, res) => {
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching bookings', error: error.message });
+  }
+});
+
+// Delete Booking (Admin only) - validate id format and check existence
+app.delete('/api/bookings/:id', isAdminAuthenticated, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // validate id format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid booking ID format' });
+    }
+
+    const result = await Booking.findByIdAndDelete(id);
+
+    if (!result) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    res.json({ message: 'Booking deleted successfully' });
+  } catch (error) {
+    console.error("❌ Error deleting booking:", error);
+    res.status(500).json({ message: 'Error deleting booking', error: error.message });
+  }
+});
 
 // Create Appointment (Admin only)
 app.post('/api/appointments', isAdminAuthenticated, async (req, res) => {
   try {
-    const newAppointment = new Appointment(req.body);
+    const { clientName, contactNumber, service, date, time, notes } = req.body;
+
+    // Build a proper combined Date object
+    const dateTime = new Date(`${date}T${time}:00`);
+
+    const newAppointment = new Appointment({
+      clientName,
+      contactNumber,
+      service,
+      date,
+      time,
+      notes,
+      dateTime   // ✅ ensure this gets stored
+    });
+
     await newAppointment.save();
     res.status(201).json(newAppointment);
   } catch (error) {
     res.status(400).json({ message: 'Error creating appointment', error: error.message });
   }
 });
+
 
 // Get All Appointments (Public and Admin)
 app.get('/api/appointments', async (req, res) => {
@@ -194,6 +267,55 @@ app.post('/api/complaints', async (req, res) => {
   }
 });
 
+// NEW ROUTE: Submit via /api/messages (Public)
+app.post('/api/messages', async (req, res) => {
+  try {
+    // Accept either name/email/phone or senderName/senderEmail/senderPhone
+    const {
+      name,
+      senderName: senderNameFromBody,
+      email,
+      senderEmail,
+      phone,
+      senderPhone,
+      type,
+      message
+    } = req.body;
+
+    // Basic validation: require type and message
+    if (!type || !message) {
+      return res.status(400).json({ message: 'Type and message are required.' });
+    }
+
+    // Map to schema fields. If no sender name provided, default to 'Anonymous' to satisfy schema required field.
+    const finalSenderName = name || senderNameFromBody || 'Anonymous';
+    const finalSenderEmail = email || senderEmail;
+    const finalSenderPhone = phone || senderPhone;
+
+    const newMessage = new ComplaintReport({
+      senderName: finalSenderName,
+      senderEmail: finalSenderEmail,
+      senderPhone: finalSenderPhone,
+      message,
+      type
+    });
+
+    await newMessage.save();
+
+    console.log('📩 New message received via /api/messages:', {
+      senderName: finalSenderName,
+      senderEmail: finalSenderEmail,
+      senderPhone: finalSenderPhone,
+      type,
+      message
+    });
+
+    res.status(201).json({ message: 'Message received successfully!', data: newMessage });
+  } catch (error) {
+    res.status(400).json({ message: 'Error submitting message', error: error.message });
+  }
+});
+
 // Get All Complaints/Reports (Admin only)
 app.get('/api/complaints', isAdminAuthenticated, async (req, res) => {
   try {
@@ -219,12 +341,47 @@ app.delete('/api/complaints/:id', isAdminAuthenticated, async (req, res) => {
 });
 
 // NEW ADDITION: Submit Job Application (Public)
+// This route now validates the payload and maps either "experience" or "experienceYears".
 app.post('/api/applications', async (req, res) => {
   try {
-    const newApplication = new JobApplication(req.body);
+    // Accept either "experience" or legacy "experienceYears"
+    const { name, experience, experienceYears, address, phone, email, motivation } = req.body;
+
+    const expRaw = experience !== undefined ? experience : experienceYears;
+
+    // Basic validation
+    if (!name || expRaw === undefined || !address || !phone || !email || !motivation) {
+      return res.status(400).json({ message: 'All fields are required: name, experience, address, phone, email, motivation' });
+    }
+
+    const expNumber = Number(expRaw);
+    if (isNaN(expNumber) || expNumber < 0) {
+      return res.status(400).json({ message: 'Experience must be a non-negative number' });
+    }
+
+    const newApplication = new JobApplication({
+      name,
+      experience: expNumber,
+      address,
+      phone,
+      email,
+      motivation
+    });
+
     await newApplication.save();
-    res.status(201).json(newApplication);
+
+    console.log('✅ New Job Application:', {
+      name,
+      experience: expNumber,
+      address,
+      phone,
+      email,
+      motivation
+    });
+
+    res.status(201).json({ message: 'Application received successfully', application: newApplication });
   } catch (error) {
+    console.error('❌ Error submitting job application:', error);
     res.status(400).json({ message: 'Error submitting job application', error: error.message });
   }
 });
@@ -335,9 +492,8 @@ app.delete('/api/comments/:id', isAdminAuthenticated, async (req, res) => {
   }
 });
 
-
 // Serve admin.html for the /admin route
-app.get('/*admin', (req, res) => {
+app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
