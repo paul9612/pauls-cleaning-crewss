@@ -1,5 +1,28 @@
-// script.js
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Helper utilities ---
+    // Safely parse a fetch Response: returns parsed JSON if possible, otherwise returns { text }
+    async function parseResponseSafely(response) {
+        const text = await response.text();
+        try {
+            return text ? JSON.parse(text) : null;
+        } catch (err) {
+            // Return raw text if it's not JSON
+            return { text };
+        }
+    }
+
+    // Helper to display messages associated with forms. If no message element provided, fallback to alert.
+    function showFormMessage(elem, message, type = 'info') {
+        if (elem) {
+            elem.className = type === 'success' || type === 'success-message' ? 'success-message' :
+                             type === 'error' || type === 'error-message' ? 'error-message' :
+                             'info-message';
+            elem.textContent = message;
+        } else {
+            alert(message);
+        }
+    }
+
     // --- Theme Toggle (Dark/Light Mode) ---
     const themeToggle = document.getElementById('theme-toggle');
     const settingsBtn = document.getElementById('settings-btn');
@@ -81,8 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (applyJobsBtn) {
         applyJobsBtn.addEventListener('click', () => {
             jobApplicationModal.style.display = 'block';
-            applicationMessage.textContent = ''; // Clear previous messages
-            jobApplicationForm.reset(); // Clear form fields
+            if (applicationMessage) applicationMessage.textContent = ''; // Clear previous messages
+            if (jobApplicationForm) jobApplicationForm.reset(); // Clear form fields
         });
     }
 
@@ -127,7 +150,64 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Public Appointments Display (UPDATED TO TABLE) ---
+    // --- Booking Form Submission Logic (UPDATED & INTEGRATED) ---
+    // Expects form with id="formBooking". Optional message element with id="booking-message".
+    const formBooking = document.getElementById('formBooking');
+    const bookingMessage = document.getElementById('booking-message');
+
+    if (formBooking) {
+        formBooking.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = formBooking.querySelector('button[type="submit"]');
+
+            // Read fields; allow optional time field if present
+            const booking = {
+                name: (document.getElementById('name')?.value || '').trim(),
+                address: (document.getElementById('address')?.value || '').trim(),
+                phone: (document.getElementById('phone')?.value || '').trim(),
+                cleaningType: (document.getElementById('cleaningType')?.value || '').trim(),
+                notes: (document.getElementById('notes')?.value || '').trim(),
+                date: (document.getElementById('date')?.value || '').trim(),
+                time: (document.getElementById('time')?.value || '').trim() // optional
+            };
+
+            // Basic validation
+            if (!booking.name || !booking.phone || !booking.cleaningType || !booking.date) {
+                showFormMessage(bookingMessage, 'Please fill in the required fields: name, phone, service type and date.', 'error');
+                return;
+            }
+
+            // Optionally disable submit button while sending
+            if (submitBtn) submitBtn.setAttribute('disabled', 'disabled');
+
+            try {
+                const res = await fetch('/api/bookings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(booking)
+                });
+
+                const data = await parseResponseSafely(res);
+
+                if (res.ok) {
+                    showFormMessage(bookingMessage, (data && (data.message || data.text)) ? (data.message || data.text) : 'Booking submitted successfully!', 'success');
+                    formBooking.reset();
+                } else {
+                    // If backend returned structured message, show it, otherwise fallback to status
+                    const errMsg = data && (data.message || data.text) ? (data.message || data.text) : `Failed to submit booking. (${res.status})`;
+                    showFormMessage(bookingMessage, errMsg, 'error');
+                }
+            } catch (err) {
+                console.error('Error submitting booking:', err);
+                showFormMessage(bookingMessage, 'There was a problem submitting your booking. Please try again.', 'error');
+            } finally {
+                if (submitBtn) submitBtn.removeAttribute('disabled');
+            }
+        });
+    }
+
+    // --- Public Appointments Display (UPDATED TO TABLE RENDERING) ---
     const appointmentsListContainer = document.getElementById('appointments-list');
 
     async function fetchPublicAppointments() {
@@ -138,83 +218,54 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const appointments = await response.json();
+
+            // Use safe parser so non-JSON responses won't break us
+            const data = await parseResponseSafely(response);
             // ✅ ADDED: Log the appointments from the API to see their structure
-            console.log("Appointments from API:", appointments);
-            displayPublicAppointments(appointments);
+            console.log("Appointments from API:", data);
+
+            // Build table instead of grid/cards
+            if (!Array.isArray(data) || data.length === 0) {
+                appointmentsListContainer.innerHTML = '<p>No upcoming appointments scheduled at the moment. Check back soon!</p>';
+                return;
+            }
+
+            let tableHTML = `
+  <table id="appointments-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Service</th>
+        <th>Client</th>
+      </tr>
+    </thead>
+    <tbody>
+`;
+
+            tableHTML += data.map(a => `
+              <tr>
+                <td>${a.date || 'No date'}</td>
+                <td>${a.time || '-'}</td>
+                <td>${a.service || a.cleaningType || 'Unknown service'}</td>
+                <td>${a.clientName || a.name || 'N/A'}</td>
+              </tr>
+            `).join('');
+
+            tableHTML += `</tbody></table>`;
+            appointmentsListContainer.innerHTML = tableHTML;
+
         } catch (error) {
             console.error('Error fetching public appointments:', error);
             appointmentsListContainer.innerHTML = '<p class="error-message">Failed to load appointments. Please try again later.</p>';
         }
     }
 
-    function displayPublicAppointments(appointments) {
-        if (!appointmentsListContainer) return;
-
-        appointmentsListContainer.innerHTML = ''; // Clear previous content
-
-        const now = new Date();
-        // Filter for appointments that are in the future.
-        // ✅ FIX: Combine date and time from backend response
-        const futureAppointments = appointments.filter(app => {
-            // OLD ❌: const appDateTime = new Date(app.dateTime);
-            const appDateTime = new Date(`${app.date}T${app.time}:00`); // NEW ✅
-            return appDateTime > now;
-        }).sort((a, b) => {
-            // OLD ❌: const dateA = new Date(a.dateTime);
-            // OLD ❌: const dateB = new Date(b.dateTime);
-            const dateA = new Date(`${a.date}T${a.time}:00`); // NEW ✅
-            const dateB = new Date(`${b.date}T${b.time}:00`); // NEW ✅
-            return dateA - dateB;
-        });
-
-        if (futureAppointments.length === 0) {
-            appointmentsListContainer.innerHTML = '<p>No upcoming appointments scheduled at the moment. Check back soon!</p>';
-            return;
-        }
-
-        const table = document.createElement('table');
-        table.id = 'appointments-table'; // Add ID for responsive styles
-
-        const thead = document.createElement('thead');
-        thead.innerHTML = `
-            <tr>
-                <th>Service</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Notes</th>
-            </tr>
-        `;
-        table.appendChild(thead);
-
-        const tbody = document.createElement('tbody');
-        futureAppointments.forEach(appointment => {
-            const row = tbody.insertRow();
-
-            // ✅ FIX: Combine date and time from backend response
-            // OLD ❌: const dateTimeObj = new Date(appointment.dateTime);
-            const dateTimeObj = new Date(`${appointment.date}T${appointment.time}:00`); // NEW ✅
-            const displayDate = dateTimeObj.toLocaleDateString('en-NZ', {
-                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
-            });
-            const displayTime = dateTimeObj.toLocaleTimeString('en-NZ', {
-                hour: '2-digit', minute: '2-digit'
-            });
-
-            row.insertCell().textContent = appointment.service;
-            row.insertCell().textContent = displayDate;
-            row.insertCell().textContent = displayTime;
-            row.insertCell().textContent = appointment.notes || 'N/A';
-        });
-        table.appendChild(tbody);
-        appointmentsListContainer.appendChild(table);
-    }
-
     // --- Star Review System Logic ---
     const starRatingContainer = document.querySelector('.star-rating');
     const stars = document.querySelectorAll('.star-rating .star');
-    let currentRating = parseInt(starRatingContainer.dataset.rating);
-    const averageRatingDisplay = document.getElementById('average-rating-display'); // Get the display element
+    let currentRating = parseInt(starRatingContainer?.dataset?.rating || '0');
+    const averageRatingDisplay = document.getElementById('average-rating-display');
 
     function highlightStars(rating) {
         stars.forEach(star => {
@@ -228,38 +279,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // NEW: Function to fetch and display average rating
     async function fetchAverageRating() {
+        if (!averageRatingDisplay) return;
+
         try {
             const response = await fetch('/api/reviews/average');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
             const data = await response.json();
+
             if (data.totalRatings > 0) {
-                averageRatingDisplay.textContent = `${data.averageRating} out of 5 ratings (${data.totalRatings} total)`;
+                const avg = parseFloat(data.averageRating) || 0;
+                const total = data.totalRatings || 0;
+
+                averageRatingDisplay.textContent = `${avg.toFixed(1)} out of 5 ratings (${total} total)`;
+
+                // Update star highlight based on average rating
+                currentRating = Math.round(avg);
+                highlightStars(currentRating);
             } else {
                 averageRatingDisplay.textContent = 'No ratings yet. Be the first!';
+                highlightStars(0);
             }
         } catch (error) {
             console.error('Error fetching average rating:', error);
             averageRatingDisplay.textContent = 'Could not load ratings.';
+            highlightStars(0);
         }
     }
 
+    // Event listeners for stars
     stars.forEach(star => {
-        star.addEventListener('mouseover', () => {
-            highlightStars(parseInt(star.dataset.value));
-        });
-
-        star.addEventListener('mouseout', () => {
-            highlightStars(currentRating); // Revert to current rating
-        });
-
+        star.addEventListener('mouseover', () => highlightStars(parseInt(star.dataset.value)));
+        star.addEventListener('mouseout', () => highlightStars(currentRating));
         star.addEventListener('click', async () => {
             currentRating = parseInt(star.dataset.value);
             starRatingContainer.dataset.rating = currentRating;
             highlightStars(currentRating);
 
-            // Send rating to backend
             try {
                 const response = await fetch('/api/reviews', {
                     method: 'POST',
@@ -268,9 +324,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (response.ok) {
-                    console.log('Review submitted successfully:', currentRating);
-                    reviewThankYouModal.style.display = 'block'; // Show thank you modal
-                    fetchAverageRating(); // NEW: Update average rating after submission
+                    console.log('Review submitted:', currentRating);
+                    fetchAverageRating(); // refresh average immediately
                 } else {
                     const errorData = await response.json();
                     console.error('Failed to submit review:', errorData.message);
@@ -283,8 +338,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Initialize stars based on currentRating (if any, though for public it starts at 0)
+    // Initialize stars and average rating
     highlightStars(currentRating);
+    fetchAverageRating();
+    setInterval(fetchAverageRating, 10000); // auto-refresh every 10s
 
     // --- Contact Form (Complaint/Report) Logic ---
     const complaintReportForm = document.getElementById('complaint-report-form');
@@ -329,22 +386,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Job Application Form Submission Logic
+    // Job Application Form Submission Logic (FIXED: send keys matching backend schema)
     if (jobApplicationForm) {
         jobApplicationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const submitBtn = jobApplicationForm.querySelector('button[type="submit"]');
+
+            // Map frontend inputs to backend schema keys:
+            const fullName = (document.getElementById('applicantName')?.value || '').trim();
+            const yearsOfExperienceRaw = (document.getElementById('applicantExperience')?.value || '').trim();
+            const yearsOfExperience = yearsOfExperienceRaw === '' ? NaN : parseInt(yearsOfExperienceRaw, 10);
+            const address = (document.getElementById('applicantAddress')?.value || '').trim();
+            const phoneNumber = (document.getElementById('applicantPhone')?.value || '').trim();
+            const email = (document.getElementById('applicantEmail')?.value || '').trim();
+            const whyJoin = (document.getElementById('applicantMotivation')?.value || '').trim();
+
+            // Basic validation: require fullName, yearsOfExperience (numeric), and email
+            if (!fullName || isNaN(yearsOfExperience) || !email) {
+                showFormMessage(applicationMessage, 'Please provide your full name, years of experience (number) and email.', 'error');
+                return;
+            }
+
+            // FIXED: send keys that match the backend schema (name, experienceYears, phone, motivation)
             const formData = {
-                name: document.getElementById('applicantName').value,
-                experienceYears: parseInt(document.getElementById('applicantExperience').value),
-                address: document.getElementById('applicantAddress').value,
-                phone: document.getElementById('applicantPhone').value,
-                email: document.getElementById('applicantEmail').value,
-                motivation: document.getElementById('applicantMotivation').value
+                name: fullName,
+                experienceYears: yearsOfExperience,
+                address: address,
+                phone: phoneNumber,
+                email: email,
+                motivation: whyJoin
             };
 
+            // Disable submit button while sending
+            if (submitBtn) submitBtn.setAttribute('disabled', 'disabled');
+
             try {
-                const response = await fetch('/api/applications', { // New API endpoint
+                const response = await fetch('/api/applications', { // API endpoint
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -352,20 +430,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(formData)
                 });
 
-                const result = await response.json();
+                const result = await parseResponseSafely(response);
 
                 if (response.ok) {
-                    applicationMessage.className = 'success-message';
-                    applicationMessage.textContent = 'Application submitted successfully! We will review it and get back to you.';
+                    showFormMessage(applicationMessage, 'Application submitted successfully! We will review it and get back to you.', 'success');
                     jobApplicationForm.reset();
+                    // Optionally close the modal:
+                    // if (jobApplicationModal) jobApplicationModal.style.display = 'none';
                 } else {
-                    applicationMessage.className = 'error-message';
-                    applicationMessage.textContent = result.message || 'Failed to submit application. Please try again.';
+                    const errMsg = result && (result.message || result.text) ? (result.message || result.text) : `Failed to submit application. (${response.status})`;
+                    showFormMessage(applicationMessage, errMsg, 'error');
                 }
             } catch (error) {
                 console.error('Error submitting job application:', error);
-                applicationMessage.className = 'error-message';
-                applicationMessage.textContent = 'An error occurred. Please try again.';
+                showFormMessage(applicationMessage, 'An error occurred. Please try again.', 'error');
+            } finally {
+                if (submitBtn) submitBtn.removeAttribute('disabled');
             }
         });
     }
