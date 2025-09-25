@@ -55,63 +55,104 @@ a:hover {
     text-decoration: underline;
 }
 
-/* Header and Navigation */
+/* Header and Navigation
+   FIX: Make header full-width background and use inner nav as centered container.
+   - header is the full-width bar (background-color applies edge-to-edge)
+   - nav is the centered max-width container that holds .logo and .nav-actions/.nav-links
+*/
 header {
     background-color: var(--header-bg);
     color: var(--text-color);
-    padding: 1rem 0;
+    /* Make header background span full width */
+    width: 100%;
+    margin: 0; /* remove auto centering on header itself */
+    padding: 0; /* we'll control vertical padding inside nav for tighter control */
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     position: sticky;
     top: 0;
     z-index: 1000;
+    display: flex;
+    justify-content: center; /* center the inner nav container */
+    align-items: center;
+    box-sizing: border-box;
 }
 
+/* centered container inside header */
 nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
+    width: 100%;          /* stretch to header width but constrained by max-width */
+    max-width: 1200px;    /* control inner content width */
+    margin: 0 auto;       /* center within header */
+    padding: 0.75rem 20px; /* vertical spacing and horizontal padding */
 }
 
+/* Logo */
 .logo img {
-    height: 200px; /* Changed from 60px to 120px for 2x bigger */
+    height: 120px; /* reasonable doubled size (changed from 60px -> 120px) */
     width: auto;
+    display: block;
 }
 
+/* Right side actions container (for Admin Login / Apply for Jobs / Book a Cleaning) */
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 20px;
+}
+
+/* Navigation links (optional main links) */
 .nav-links {
     list-style: none;
     display: flex;
     align-items: center;
+    gap: 12px;
 }
 
 .nav-links li {
-    margin-left: 20px;
+    /* remove large left-margin and use gap for spacing */
+    margin: 0;
 }
 
-.nav-links a, .nav-links button {
+/* Buttons/links styling shared */
+.nav-links a, .nav-links button, .nav-actions a, .nav-actions button {
     color: var(--text-color);
     font-weight: bold;
     padding: 8px 15px;
     border-radius: 5px;
     transition: background-color 0.3s, color 0.3s;
     white-space: nowrap; /* Prevent wrapping for buttons/links */
+    border: none;
+    background: none;
+    cursor: pointer;
 }
 
-.nav-links a:hover, .nav-links button:hover {
+.nav-links a:hover, .nav-links button:hover, .nav-actions a:hover, .nav-actions button:hover {
     background-color: var(--primary-color);
     color: #fff;
     text-decoration: none;
 }
 
+/* Specific action/button styles */
 .admin-login-btn, #admin-logout-btn {
     background-color: var(--primary-color);
     color: #fff;
     border: none;
     cursor: pointer;
+    padding: 8px 14px;
 }
 
+#apply-jobs-btn, #book-cleaning-btn {
+    background-color: var(--secondary-color);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    padding: 8px 14px;
+}
+
+/* Settings icon/button */
 .settings-btn {
     background: none;
     border: none;
@@ -433,7 +474,6 @@ h1, h2, h3 {
     color: var(--text-color); /* ✅ adapts to light/dark */
 }
 
-
 /* Set explicit row background color for this table only */
 #appointments-table tbody tr {
     background-color: #ffffff !important; /* rows will be white */
@@ -530,7 +570,6 @@ h1, h2, h3 {
     border-top: 1px solid var(--border-color);
     padding-top: 10px;
 }
-
 
 /* Footer */
 footer {
@@ -701,7 +740,6 @@ body.dark-mode #clientList li button:hover {
     background-color: #c00;
 }
 
-
 /* Modal Styles */
 .modal {
     display: none; /* Hidden by default */
@@ -779,7 +817,9 @@ body.dark-mode #clientList li button:hover {
     /* Header and Navigation */
     nav {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch; /* make nav children full-width stacking */
+        gap: 10px;
+        padding: 0.5rem 16px;
     }
 
     .logo img {
@@ -789,12 +829,20 @@ body.dark-mode #clientList li button:hover {
     .nav-links {
         flex-direction: column;
         width: 100%;
-        margin-top: 15px;
+        margin-top: 0;
         align-items: center;
+        gap: 10px;
+    }
+
+    .nav-actions {
+        width: 100%;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
     .nav-links li {
-        margin: 10px 0;
+        margin: 0;
     }
 
     /* Hero Section */
@@ -864,6 +912,7 @@ body.dark-mode #clientList li button:hover {
         border-radius: 8px;
         background-color: var(--card-bg);
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        padding: 10px;
     }
 
     table td {
