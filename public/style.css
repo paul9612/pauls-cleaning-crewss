@@ -406,13 +406,11 @@ h1, h2, h3 {
 .success-message {
     background-color: #d4edda;
     color: #155724;
-    border: 1px solid #c3e6cb;
 }
 
 .error-message {
     background-color: #f8d7da;
     color: #721c24;
-    border: 1px solid #f5c6cb;
 }
 
 /* Public Appointments Section */
@@ -1029,71 +1027,70 @@ body.dark-mode #clientList li button:hover {
     }
 }
 
-/* Additional responsive tweaks for mobile, tablet, PC (explicit breakpoints) */
-
-/* Tablet devices (768px - 1024px) */
+/* Responsive views for Public site and Admin views
+   Tablet (768px - 1024px) and Desktop (1025px+)
+*/
 @media (min-width: 769px) and (max-width: 1024px) {
-    /* Header/logo sizing */
+    /* Tablet public adjustments */
     .logo img {
-        height: 110px;
+        height: 100px;
     }
-
-    /* Hero typography */
     .hero h1 {
-        font-size: 3rem;
+        font-size: 3.25rem;
     }
     .hero p {
-        font-size: 1.3rem;
+        font-size: 1.4rem;
     }
-
-    /* Content layout adjustments */
+    nav {
+        padding: 0.75rem 20px;
+    }
     .service-grid {
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 28px;
+    }
+    #appointments-table {
+        font-size: 0.96rem;
     }
 
-    /* Video container width limit on tablet */
-    .video-container {
-        max-width: 700px;
+    /* Tablet admin adjustments */
+    #admin-dashboard .dashboard-content {
+        padding: 28px;
     }
-
-    /* Star rating size on tablet */
-    .star-rating {
-        font-size: 2.25rem;
+    .dashboard-nav {
+        gap: 14px;
+    }
+    table {
+        font-size: 0.95rem;
     }
 }
 
-/* Desktop / PC devices (1025px and up) */
 @media (min-width: 1025px) {
-    /* Logo remains large, hero becomes more prominent */
+    /* Desktop / PC public adjustments */
     .logo img {
         height: 120px;
     }
-
     .hero h1 {
-        font-size: 3.75rem;
+        font-size: 4rem;
     }
     .hero p {
         font-size: 1.6rem;
     }
-
-    /* Services grid expands for larger screens */
     .service-grid {
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 34px;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 30px;
+    }
+    #appointments-table {
+        font-size: 1rem;
     }
 
-    /* Video container larger on desktops */
-    .video-container {
-        max-width: 900px;
+    /* Desktop admin adjustments */
+    #admin-dashboard .dashboard-content {
+        padding: 32px;
     }
-
-    /* Star rating slightly larger on desktop */
-    .star-rating {
-        font-size: 2.75rem;
+    .dashboard-nav {
+        gap: 18px;
     }
-
-    /* Adjust table font slightly for desktop readability */
-    #appointments-table th, #appointments-table td {
-        font-size: 0.98rem;
+    table {
+        font-size: 1rem;
     }
 }
