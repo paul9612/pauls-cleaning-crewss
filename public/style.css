@@ -1028,3 +1028,72 @@ body.dark-mode #clientList li button:hover {
         background-color: #fff !important;
     }
 }
+
+/* Additional responsive tweaks for mobile, tablet, PC (explicit breakpoints) */
+
+/* Tablet devices (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    /* Header/logo sizing */
+    .logo img {
+        height: 110px;
+    }
+
+    /* Hero typography */
+    .hero h1 {
+        font-size: 3rem;
+    }
+    .hero p {
+        font-size: 1.3rem;
+    }
+
+    /* Content layout adjustments */
+    .service-grid {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    /* Video container width limit on tablet */
+    .video-container {
+        max-width: 700px;
+    }
+
+    /* Star rating size on tablet */
+    .star-rating {
+        font-size: 2.25rem;
+    }
+}
+
+/* Desktop / PC devices (1025px and up) */
+@media (min-width: 1025px) {
+    /* Logo remains large, hero becomes more prominent */
+    .logo img {
+        height: 120px;
+    }
+
+    .hero h1 {
+        font-size: 3.75rem;
+    }
+    .hero p {
+        font-size: 1.6rem;
+    }
+
+    /* Services grid expands for larger screens */
+    .service-grid {
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 34px;
+    }
+
+    /* Video container larger on desktops */
+    .video-container {
+        max-width: 900px;
+    }
+
+    /* Star rating slightly larger on desktop */
+    .star-rating {
+        font-size: 2.75rem;
+    }
+
+    /* Adjust table font slightly for desktop readability */
+    #appointments-table th, #appointments-table td {
+        font-size: 0.98rem;
+    }
+}
