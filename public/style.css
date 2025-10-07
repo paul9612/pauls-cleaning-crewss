@@ -406,11 +406,13 @@ h1, h2, h3 {
 .success-message {
     background-color: #d4edda;
     color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
 .error-message {
     background-color: #f8d7da;
     color: #721c24;
+    border: 1px solid #f5c6cb;
 }
 
 /* Public Appointments Section */
@@ -894,7 +896,7 @@ body.dark-mode #clientList li button:hover {
     }
 
     /* Table responsiveness for smaller screens - applied only inside this media query */
-    table, thead, tbody, th, td, tr {
+    table, thead, tbody, th, td {
         display: block; /* stack on mobile only */
     }
 
@@ -1027,70 +1029,98 @@ body.dark-mode #clientList li button:hover {
     }
 }
 
-/* Responsive views for Public site and Admin views
-   Tablet (768px - 1024px) and Desktop (1025px+)
+/* Responsive Utility Blocks (Public & Admin Views)
+   - Public: adjust layout for mobile, tablet, and desktop
+   - Admin: adjust dashboards and tables for similar breakpoints
 */
-@media (min-width: 769px) and (max-width: 1024px) {
-    /* Tablet public adjustments */
-    .logo img {
-        height: 100px;
-    }
-    .hero h1 {
-        font-size: 3.25rem;
-    }
-    .hero p {
-        font-size: 1.4rem;
-    }
-    nav {
-        padding: 0.75rem 20px;
-    }
-    .service-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 28px;
-    }
-    #appointments-table {
-        font-size: 0.96rem;
-    }
 
-    /* Tablet admin adjustments */
-    #admin-dashboard .dashboard-content {
-        padding: 28px;
-    }
-    .dashboard-nav {
-        gap: 14px;
-    }
-    table {
-        font-size: 0.95rem;
-    }
+/* Mobile portrait: phones (<= 420px) */
+@media (max-width: 420px) {
+    /* Header/logo sizing */
+    .logo img { height: 70px; }
+
+    /* Hero text scaling for small screens */
+    .hero { padding: 60px 20px; }
+    .hero h1 { font-size: 2.2rem; }
+    .hero p { font-size: 1.1rem; }
+
+    /* Main content spacing */
+    main { padding: 0 12px; }
+    section { padding: 40px 0; }
+
+    /* Public service grid becomes single column on narrow phones */
+    .service-grid { grid-template-columns: 1fr; }
+
+    /* Adjust comment list and mobile widgets spacing if needed */
+    #comment-list { grid-template-columns: 1fr; }
+
+    /* Admin dashboard stacking on mobile */
+    .dashboard-nav { flex-direction: column; align-items: stretch; }
+
+    /* Client list items stack */
+    #clientList li { flex-direction: column; align-items: stretch; }
+    .client-details { grid-template-columns: 1fr; }
+
+    /* Tables collapse to stacks with labels already defined in @media (max-width: 768px) */
+    /* Ensure table labels remain readable in very narrow viewports */
+    table, thead, tbody, th, td { display: block; }
+    table thead tr { position: absolute; top: -9999px; left: -9999px; }
+    table tr { border: 1px solid var(--border-color); margin-bottom: 15px; border-radius: 8px; background-color: var(--card-bg); padding: 10px; }
+    table td { border: none; border-bottom: 1px solid var(--border-color); position: relative; padding-left: 50%; text-align: right; display: block; }
+    table td:before { position: absolute; top: 12px; left: 6px; width: 45%; padding-right: 10px; white-space: nowrap; text-align: left; font-weight: bold; color: var(--primary-color); }
+
+    table#appointments-table td:nth-of-type(1):before { content: "Date:"; }
+    table#appointments-table td:nth-of-type(2):before { content: "Time:"; }
+    table#appointments-table td:nth-of-type(3):before { content: "Service:"; }
+    table#appointments-table td:nth-of-type(4):before { content: "Client:"; }
+
+    table#admin-appointments-table td:nth-of-type(1):before { content: "Client Name:"; }
+    table#admin-appointments-table td:nth-of-type(2):before { content: "Contact:"; }
+    table#admin-appointments-table td:nth-of-type(3):before { content: "Service:"; }
+    table#admin-appointments-table td:nth-of-type(4):before { content: "Date:"; }
+    table#admin-appointments-table td:nth-of-type(5):before { content: "Time:"; }
+    table#admin-appointments-table td:nth-of-type(6):before { content: "Notes:"; }
+    table#admin-appointments-table td:nth-of-type(7):before { content: "Actions:"; }
+
+    table#complaints-table td:nth-of-type(1):before { content: "Type:"; }
+    table#complaints-table td:nth-of-type(2):before { content: "Sender Name:"; }
+    table#complaints-table td:nth-of-type(3):before { content: "Email:"; }
+    table#complaints-table td:nth-of-type(4):before { content: "Phone:"; }
+    table#complaints-table td:nth-of-type(5):before { content: "Message:"; }
+    table#complaints-table td:nth-of-type(6):before { content: "Date:"; }
+
+    table#applications-table td:nth-of-type(1):before { content: "Name:"; }
+    table#applications-table td:nth-of-type(2):before { content: "Experience:"; }
+    table#applications-table td:nth-of-type(3):before { content: "Address:"; }
+    table#applications-table td:nth-of-type(4):before { content: "Phone:"; }
+    table#applications-table td:nth-of-type(5):before { content: "Email:"; }
+    table#applications-table td:nth-of-type(6):before { content: "Motivation:"; }
+    table#applications-table td:nth-of-type(7):before { content: "Date:"; }
+    table#applications-table td:nth-of-type(8):before { content: "Actions:"; }
 }
 
-@media (min-width: 1025px) {
-    /* Desktop / PC public adjustments */
-    .logo img {
-        height: 120px;
-    }
-    .hero h1 {
-        font-size: 4rem;
-    }
-    .hero p {
-        font-size: 1.6rem;
-    }
-    .service-grid {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 30px;
-    }
-    #appointments-table {
-        font-size: 1rem;
-    }
+/* Tablet landscape (roughly 600px - 1024px) adjustments */
+@media (min-width: 421px) and (max-width: 1023px) {
+    .logo img { height: 90px; }
 
-    /* Desktop admin adjustments */
-    #admin-dashboard .dashboard-content {
-        padding: 32px;
-    }
-    .dashboard-nav {
-        gap: 18px;
-    }
-    table {
-        font-size: 1rem;
-    }
+    /* Improve readability and spacing on tablets */
+    .hero h1 { font-size: 3rem; }
+    .hero p { font-size: 1.25rem; }
+
+    /* Service grid remains responsive but can fit more comfortably */
+    .service-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+    /* Admin dashboard tweaks */
+    .dashboard-nav { gap: 14px; }
+    #clientList li { padding: 18px; }
+}
+
+/* Desktop / Large screens (PCs) */
+@media (min-width: 1024px) {
+    /* Optional fine-tuning for large displays without changing existing layout */
+    .hero { padding: 120px 20px; }
+    .hero h1 { font-size: 4rem; }
+    .hero p { font-size: 1.75rem; }
+
+    main { padding: 0 0; }
 }
