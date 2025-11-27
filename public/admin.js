@@ -2,6 +2,46 @@
 // Client-side admin/public logic — includes booking deletion support for server/legacy localStorage bookings
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Database Upgrade Check ---
+    const DATABASE_LOCKED = true; // Set to false to unlock all features
+    
+    function showUpgradeMessage(event) {
+        if (DATABASE_LOCKED) {
+            event.preventDefault();
+            event.stopPropagation();
+            alert('Upgrade your Database to continue');
+            return false;
+        }
+    }
+    
+    // Block all form submissions
+    document.addEventListener('submit', showUpgradeMessage, true);
+    
+    // Block all button clicks
+    document.addEventListener('click', (e) => {
+        if (DATABASE_LOCKED && (e.target.tagName === 'BUTTON' || e.target.closest('button'))) {
+            showUpgradeMessage(e);
+        }
+    }, true);
+    
+    // Block all input changes
+    document.addEventListener('input', showUpgradeMessage, true);
+    document.addEventListener('change', showUpgradeMessage, true);
+    
+    // Disable all inputs and buttons on page load
+    if (DATABASE_LOCKED) {
+        const disableElements = () => {
+            document.querySelectorAll('input, textarea, select, button').forEach(el => {
+                el.style.opacity = '0.5';
+                el.style.cursor = 'not-allowed';
+            });
+        };
+        
+        disableElements();
+        // Re-run after a short delay to catch dynamically added elements
+        setTimeout(disableElements, 500);
+    }
+    
     // --- Theme Toggle (Dark/Light Mode) ---
     const themeToggle = document.getElementById('theme-toggle');
     const settingsBtn = document.getElementById('settings-btn');
@@ -752,6 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let tbody = document.querySelector('#booking-table tbody');
         const usingExistingTable = !!tbody;
 
+        // If using bookingsContainer, clear previous table/content except
         // If using bookingsContainer, clear previous table/content except the no-bookings-message
         if (!usingExistingTable) {
             if (!bookingsContainer) return;
@@ -859,6 +900,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tbody && attachedBookingTbody !== tbody) {
             tbody.addEventListener('click', handleBookingTbodyClick);
             attachedBookingTbody = tbody;
+        }
+        
+        // Re-apply disabled styling if database is locked
+        if (DATABASE_LOCKED) {
+            setTimeout(() => {
+                document.querySelectorAll('input, textarea, select, button').forEach(el => {
+                    el.style.opacity = '0.5';
+                    el.style.cursor = 'not-allowed';
+                });
+            }, 100);
         }
     }
 
